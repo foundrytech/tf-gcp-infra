@@ -93,3 +93,5 @@ output "vpc_id" {
 - Run `terraform init` cmd in the project folder to init the project into a terraform project
 - Run `terraform plan` command: it creates an execution plan, which lets you preview the changes that Terraform plans to make to your infrastructure.
 - Run `terraform apply` command: it executes the actions proposed in a Terraform plan.
+
+- test
