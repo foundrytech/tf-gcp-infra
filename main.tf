@@ -27,3 +27,27 @@ resource "google_compute_route" "vpc_route" {
   network          = google_compute_network.vpc_network.name
   next_hop_gateway = var.next_hop_gateway
 }
+
+resource "google_compute_firewall" "allow-app" {
+  name    = "allow-app-traffic"
+  network = google_compute_network.vpc_network.name 
+  
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "restrict-ssh" {
+  name    = "restrict-ssh"
+  network = google_compute_network.vpc_network.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_tags = ["allow-ssh"]
+}
