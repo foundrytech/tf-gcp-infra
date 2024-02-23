@@ -8,7 +8,7 @@ resource "google_compute_network" "vpc_network" {
 
 resource "google_compute_subnetwork" "webapp_subnet" {
   name          = var.subnet_name1
-  ip_cidr_range = var.ip_cidr_range1
+  ip_cidr_range = "192.168.1.0/24"
   region        = var.region
   network       = google_compute_network.vpc_network.name
 }
@@ -30,8 +30,8 @@ resource "google_compute_route" "vpc_route" {
 
 resource "google_compute_firewall" "allow-app" {
   name    = "allow-app-traffic"
-  network = google_compute_network.vpc_network.name 
-  
+  network = google_compute_network.vpc_network.name
+
   allow {
     protocol = "tcp"
     ports    = ["8080"]
@@ -48,6 +48,36 @@ resource "google_compute_firewall" "restrict-ssh" {
     protocol = "tcp"
     ports    = ["22"]
   }
+  source_ranges = ["0.0.0.0/0"]
+}
 
-  source_tags = ["allow-ssh"]
+data "google_compute_image" "custom_image" {
+  family = var.image_family
+}
+
+resource "google_compute_address" "external_ip" {
+  name = "external-ip-address"
+}
+
+resource "google_compute_instance" "webapp_instance" {
+  name         = var.instance_name
+  tags         = [var.network_tag]
+  zone         = var.zone
+  machine_type = var.machine_type
+
+  boot_disk {
+    initialize_params {
+      image = data.google_compute_image.custom_image.self_link
+      type  = var.disk_type
+      size  = var.disk_size
+    }
+  }
+
+  network_interface {
+    network    = google_compute_network.vpc_network.name
+    subnetwork = google_compute_subnetwork.webapp_subnet.name
+    access_config {
+      nat_ip = google_compute_address.external_ip.address
+    }
+  }
 }

@@ -80,6 +80,49 @@ resource "google_compute_network" "vpc_network" {
 }
 ```
 
+- Add Network Firewall using Terraform : 
+ Set up firewall rules for you custom VPC/Subnet to allow traffic from the internet to the port your application listens to. Do not allow traffic to SSH port from the internet. 
+ Doc for configuring GCP VPC firewalls using terraform:
+- [google_compute_firewall](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_firewall)
+```tf
+resource "google_compute_firewall" "allow-app" {
+  name    = "allow-app-traffic"
+  network = google_compute_network.vpc_network.name 
+  
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  source_tags = ["webapp"]
+}
+
+```
+
+- Launch GCP VM instance using Terraform: 
+- [google_compute_instance](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance)
+- [GCP Operating system details](https://cloud.google.com/compute/docs/images/os-details)
+```tf
+resource "google_compute_instance" "webapp_instance" {
+  name         = var.instance_name
+  machine_type = var.machine_type
+  tags         = ["webapp"]
+  
+  boot_disk {
+    initialize_params {
+      image = var.image
+      type = var.disk_type
+      size = var.disk_size
+    }
+  }
+
+  network_interface {
+    network = google_compute_network.vpc_network.name
+    subnetwork = google_compute_subnetwork.webapp_subnet.name
+  }
+}
+```
+
 - Create `outputs.tf`, Output values make information about your infrastructure available on the command line, and can expose information for other Terraform configurations to use. Output values are similar to return values in programming languages.
 
 ```tf
@@ -88,7 +131,7 @@ output "vpc_id" {
 }
 ```
 
-6. Provisioning Infrastructure with Terraform
+1. Provisioning Infrastructure with Terraform
 
 - Run `terraform init` cmd in the project folder to init the project into a terraform project
 - Run `terraform plan` command: it creates an execution plan, which lets you preview the changes that Terraform plans to make to your infrastructure.
