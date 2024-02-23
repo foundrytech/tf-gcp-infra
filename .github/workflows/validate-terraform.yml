@@ -1,9 +1,9 @@
-name: Terraform Validation
+name: Terraform workflow
 
 on: pull_request
 
 jobs:
-  validate_terraform:
+  validate:
     runs-on: ubuntu-latest
 
     steps:
