@@ -8,7 +8,7 @@ resource "google_compute_network" "vpc_network" {
 
 resource "google_compute_subnetwork" "webapp_subnet" {
   name          = var.subnet_name1
-  ip_cidr_range = "192.168.1.0/24"
+  ip_cidr_range = var.ip_cidr_range1
   region        = var.region
   network       = google_compute_network.vpc_network.name
 }
