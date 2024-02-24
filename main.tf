@@ -37,14 +37,14 @@ resource "google_compute_firewall" "allow-app" {
     ports    = ["8080"]
   }
 
-  source_ranges = ["0.0.0.0/0"]
+  source_tags = ["webapp"]
 }
 
 resource "google_compute_firewall" "restrict-ssh" {
   name    = "restrict-ssh"
   network = google_compute_network.vpc_network.name
 
-  allow {
+  deny {
     protocol = "tcp"
     ports    = ["22"]
   }
@@ -61,7 +61,7 @@ resource "google_compute_address" "external_ip" {
 
 resource "google_compute_instance" "webapp_instance" {
   name         = var.instance_name
-  tags         = [var.network_tag]
+  tags         = [var.instance_tag]
   zone         = var.zone
   machine_type = var.machine_type
 
