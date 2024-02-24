@@ -43,19 +43,11 @@ variable "next_hop_gateway" {
   type = string
 }
 
-variable "network_tag" {
-  type = string
-}
-
-variable "image_name" {
+variable "instance_tag" {
   type = string
 }
 
 variable "image_family" {
-  type = string
-}
-
-variable "image_source_disk" {
   type = string
 }
 
