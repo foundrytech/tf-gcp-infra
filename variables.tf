@@ -22,7 +22,6 @@ variable "ip_cidr_range1" {
   type = string
 }
 
-
 variable "subnet_name2" {
   type = string
 }
