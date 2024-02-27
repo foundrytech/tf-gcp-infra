@@ -62,7 +62,6 @@ resource "google_compute_address" "external_ip" {
 resource "google_compute_instance" "webapp_instance" {
   name         = var.instance_name
   tags         = [var.instance_tag]
-  zone         = var.zone
   machine_type = var.machine_type
 
   boot_disk {

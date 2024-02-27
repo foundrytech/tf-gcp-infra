@@ -58,10 +58,6 @@ variable "machine_type" {
   type = string
 }
 
-variable "zone" {
-  type = string
-}
-
 variable "disk_type" {
   type = string
 }
