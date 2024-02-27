@@ -38,6 +38,7 @@ resource "google_compute_firewall" "allow-app" {
   }
 
   source_ranges = ["0.0.0.0/0"]
+  target_tags   = [var.instance_tag]
 }
 
 resource "google_compute_firewall" "restrict-ssh" {
@@ -49,6 +50,7 @@ resource "google_compute_firewall" "restrict-ssh" {
     ports    = ["22"]
   }
   source_ranges = ["0.0.0.0/0"]
+  target_tags   = [var.instance_tag]
 }
 
 data "google_compute_image" "custom_image" {
