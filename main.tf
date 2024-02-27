@@ -37,7 +37,7 @@ resource "google_compute_firewall" "allow-app" {
     ports    = ["8080"]
   }
 
-  source_tags = ["webapp"]
+  source_ranges = ["0.0.0.0/0"]
 }
 
 resource "google_compute_firewall" "restrict-ssh" {
