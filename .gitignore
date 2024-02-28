@@ -18,8 +18,8 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 
-# Exclude tfplan files generated when running terraform plan with the -out option
-*.tfplan
+# Exclude tfplan file generated when running terraform plan with the -out=tfplan option
+tfplan
 
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
