@@ -10,13 +10,13 @@ resource "google_compute_network" "vpc_network" {
 resource "google_compute_subnetwork" "app_subnet" {
   name          = var.app_subnet_name
   ip_cidr_range = var.app_ip_cidr_range
-  network       = google_compute_network.vpc_network.id
+  network       = google_compute_network.vpc_network.self_link
 }
 
 resource "google_compute_subnetwork" "db_subnet" {
   name                     = var.db_subnet_name
   ip_cidr_range            = var.db_ip_cidr_range
-  network                  = google_compute_network.vpc_network.id
+  network                  = google_compute_network.vpc_network.self_link
   private_ip_google_access = true
 }
 
@@ -25,7 +25,7 @@ resource "google_compute_global_address" "default" {
   name         = "global-psconnect-ip"
   address_type = "INTERNAL"
   purpose      = "PRIVATE_SERVICE_CONNECT"
-  network      = google_compute_network.vpc_network.id
+  network      = google_compute_network.vpc_network.self_link
   address      = "10.3.0.5"
 }
 # [END compute_internal_ip_private_access]
@@ -34,8 +34,8 @@ resource "google_compute_global_address" "default" {
 resource "google_compute_global_forwarding_rule" "default" {
   name                  = "global-forwarding-rule"
   target                = "all-apis"
-  network               = google_compute_network.vpc_network.id
-  ip_address            = google_compute_global_address.default.id
+  network               = google_compute_network.vpc_network.self_link
+  ip_address            = google_compute_global_address.default.self_link
   load_balancing_scheme = ""
 }
 # [END compute_forwarding_rule_private_access]
@@ -44,13 +44,13 @@ resource "google_compute_global_forwarding_rule" "default" {
 resource "google_compute_route" "vpc_route" {
   name             = var.route_name
   dest_range       = var.route_dest_range
-  network          = google_compute_network.vpc_network.id
+  network          = google_compute_network.vpc_network.self_link
   next_hop_gateway = var.next_hop_gateway
 }
 
 resource "google_compute_firewall" "allow-app" {
   name    = "allow-app-traffic"
-  network = google_compute_network.vpc_network.id
+  network = google_compute_network.vpc_network.self_link
 
   allow {
     protocol = "tcp"
@@ -63,7 +63,7 @@ resource "google_compute_firewall" "allow-app" {
 
 resource "google_compute_firewall" "restrict-ssh" {
   name    = "restrict-ssh"
-  network = google_compute_network.vpc_network.id
+  network = google_compute_network.vpc_network.self_link
 
   deny {
     protocol = "tcp"
@@ -100,15 +100,15 @@ resource "google_compute_instance" "app_instance" {
 
   boot_disk {
     initialize_params {
-      image = data.google_compute_image.custom_image.id
+      image = data.google_compute_image.custom_image.self_link
       type  = var.disk_type
       size  = var.disk_size
     }
   }
 
   network_interface {
-    network    = google_compute_network.vpc_network.id
-    subnetwork = google_compute_subnetwork.app_subnet.id
+    network    = google_compute_network.vpc_network.self_link
+    subnetwork = google_compute_subnetwork.app_subnet.self_link
     access_config {
       nat_ip = google_compute_address.external_ip.address
     }
