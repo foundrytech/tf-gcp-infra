@@ -7,17 +7,15 @@ resource "google_compute_network" "vpc_network" {
   delete_default_routes_on_create = true
 }
 
-resource "google_compute_subnetwork" "webapp_subnet" {
-  name          = var.subnet_name1
-  ip_cidr_range = var.ip_cidr_range1
-  region        = var.region
+resource "google_compute_subnetwork" "app_subnet" {
+  name          = var.app_subnet_name
+  ip_cidr_range = var.app_ip_cidr_range
   network       = google_compute_network.vpc_network.id
 }
 
 resource "google_compute_subnetwork" "db_subnet" {
-  name                     = var.subnet_name2
-  ip_cidr_range            = var.ip_cidr_range2
-  region                   = var.region
+  name                     = var.db_subnet_name
+  ip_cidr_range            = var.db_ip_cidr_range
   network                  = google_compute_network.vpc_network.id
   private_ip_google_access = true
 }
@@ -46,13 +44,13 @@ resource "google_compute_global_forwarding_rule" "default" {
 resource "google_compute_route" "vpc_route" {
   name             = var.route_name
   dest_range       = var.route_dest_range
-  network          = google_compute_network.vpc_network.name
+  network          = google_compute_network.vpc_network.id
   next_hop_gateway = var.next_hop_gateway
 }
 
 resource "google_compute_firewall" "allow-app" {
   name    = "allow-app-traffic"
-  network = google_compute_network.vpc_network.name
+  network = google_compute_network.vpc_network.id
 
   allow {
     protocol = "tcp"
@@ -60,19 +58,31 @@ resource "google_compute_firewall" "allow-app" {
   }
 
   source_ranges = ["0.0.0.0/0"]
-  target_tags   = [var.instance_tag]
+  target_tags   = [var.app_tag]
 }
 
 resource "google_compute_firewall" "restrict-ssh" {
   name    = "restrict-ssh"
-  network = google_compute_network.vpc_network.name
+  network = google_compute_network.vpc_network.id
 
   deny {
     protocol = "tcp"
     ports    = ["22"]
   }
   source_ranges = ["0.0.0.0/0"]
-  target_tags   = [var.instance_tag]
+  target_tags   = [var.app_tag]
+}
+
+resource "google_sql_database_instance" "db_instance" {
+  name             = "main-instance"
+  database_version = "POSTGRES_15"
+  region           = "us-central1"
+
+  settings {
+    # Second-generation instance tiers are based on the machine
+    # type. See argument reference below.
+    tier = "db-f1-micro"
+  }
 }
 
 data "google_compute_image" "custom_image" {
@@ -83,22 +93,22 @@ resource "google_compute_address" "external_ip" {
   name = "external-ip-address"
 }
 
-resource "google_compute_instance" "webapp_instance" {
-  name         = var.instance_name
-  tags         = [var.instance_tag]
+resource "google_compute_instance" "app_instance" {
+  name         = var.app_instance_name
+  tags         = [var.app_tag]
   machine_type = var.machine_type
 
   boot_disk {
     initialize_params {
-      image = data.google_compute_image.custom_image.self_link
+      image = data.google_compute_image.custom_image.id
       type  = var.disk_type
       size  = var.disk_size
     }
   }
 
   network_interface {
-    network    = google_compute_network.vpc_network.name
-    subnetwork = google_compute_subnetwork.webapp_subnet.name
+    network    = google_compute_network.vpc_network.id
+    subnetwork = google_compute_subnetwork.app_subnet.id
     access_config {
       nat_ip = google_compute_address.external_ip.address
     }

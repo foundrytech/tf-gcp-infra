@@ -14,19 +14,19 @@ variable "region" {
   type = string
 }
 
-variable "subnet_name1" {
+variable "app_subnet_name" {
   type = string
 }
 
-variable "ip_cidr_range1" {
+variable "app_ip_cidr_range" {
   type = string
 }
 
-variable "subnet_name2" {
+variable "db_subnet_name" {
   type = string
 }
 
-variable "ip_cidr_range2" {
+variable "db_ip_cidr_range" {
   type = string
 }
 
@@ -42,7 +42,7 @@ variable "next_hop_gateway" {
   type = string
 }
 
-variable "instance_tag" {
+variable "app_tag" {
   type = string
 }
 
@@ -50,7 +50,7 @@ variable "image_family" {
   type = string
 }
 
-variable "instance_name" {
+variable "app_instance_name" {
   type = string
 }
 
