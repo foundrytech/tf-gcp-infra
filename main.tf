@@ -103,6 +103,26 @@ resource "google_compute_forwarding_rule" "psc_forwarding_rule" {
 }
 // [END cloud_sql_postgres_instance_psc_endpoint]
 
+# [START create db in Cloud SQL instance]
+resource "google_sql_database" "db" {
+  name     = "webapp"
+  instance = google_sql_database_instance.db_instance.name
+}
+# [END create db in Cloud SQL instance]
+
+# [START setup db user and password]
+resource "random_password" "db_password" {
+  length  = 16
+  special = true
+}
+
+resource "google_sql_user" "db_user" {
+  name     = "webapp"
+  instance = google_sql_database_instance.db_instance.name
+  password = random_password.db_password.result
+}
+// [END setup db user and password]
+
 # [START setup app instance]
 data "google_compute_image" "custom_image" {
   family = var.image_family
