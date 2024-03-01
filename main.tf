@@ -8,37 +8,17 @@ resource "google_compute_network" "vpc_network" {
 }
 
 resource "google_compute_subnetwork" "app_subnet" {
-  name          = var.app_subnet_name
-  ip_cidr_range = var.app_ip_cidr_range
-  network       = google_compute_network.vpc_network.self_link
-}
-
-resource "google_compute_subnetwork" "db_subnet" {
-  name                     = var.db_subnet_name
-  ip_cidr_range            = var.db_ip_cidr_range
+  name                     = var.app_subnet_name
+  ip_cidr_range            = var.app_ip_cidr_range
   network                  = google_compute_network.vpc_network.self_link
   private_ip_google_access = true
 }
 
-# [START compute_internal_ip_private_access]
-resource "google_compute_global_address" "default" {
-  name         = "global-psconnect-ip"
-  address_type = "INTERNAL"
-  purpose      = "PRIVATE_SERVICE_CONNECT"
-  network      = google_compute_network.vpc_network.self_link
-  address      = "10.3.0.5"
+resource "google_compute_subnetwork" "db_subnet" {
+  name          = var.db_subnet_name
+  ip_cidr_range = var.db_ip_cidr_range
+  network       = google_compute_network.vpc_network.self_link
 }
-# [END compute_internal_ip_private_access]
-
-# [START compute_forwarding_rule_private_access]
-resource "google_compute_global_forwarding_rule" "default" {
-  name                  = "global-forwarding-rule"
-  target                = "all-apis"
-  network               = google_compute_network.vpc_network.self_link
-  ip_address            = google_compute_global_address.default.self_link
-  load_balancing_scheme = ""
-}
-# [END compute_forwarding_rule_private_access]
 
 # Add a route to 0.0.0.0/0 for the vpc network
 resource "google_compute_route" "vpc_route" {
@@ -73,18 +53,57 @@ resource "google_compute_firewall" "restrict-ssh" {
   target_tags   = [var.app_tag]
 }
 
-resource "google_sql_database_instance" "db_instance" {
-  name             = "main-instance"
-  database_version = "POSTGRES_15"
-  region           = "us-central1"
-
-  settings {
-    # Second-generation instance tiers are based on the machine
-    # type. See argument reference below.
-    tier = "db-f1-micro"
-  }
+// [START setup Cloud SQL instance]
+resource "random_id" "db_name_suffix" {
+  byte_length = 4
 }
 
+resource "google_sql_database_instance" "db_instance" {
+  name                = "postgres-instance-${random_id.db_name_suffix.hex}"
+  database_version    = "POSTGRES_15"
+  deletion_protection = false
+
+  settings {
+    edition           = "ENTERPRISE"
+    availability_type = "REGIONAL"
+    tier              = "db-f1-micro"
+    disk_type         = "PD_SSD"
+    disk_size         = "10"
+
+    ip_configuration {
+      ipv4_enabled = false
+
+      psc_config {
+        psc_enabled = true
+      }
+    }
+  }
+}
+# [END setup Cloud SQL instance]
+
+# [START cloud_sql_postgres_instance_psc_endpoint]
+resource "google_compute_address" "psc_address" {
+  name         = "psc-ip-address"
+  address      = "192.168.1.5"
+  address_type = "INTERNAL"
+  subnetwork   = google_compute_subnetwork.app_subnet.self_link
+}
+
+data "google_sql_database_instance" "db_instance" {
+  name = google_sql_database_instance.db_instance.name
+}
+
+resource "google_compute_forwarding_rule" "psc_forwarding_rule" {
+  name                  = "forwardingrule"
+  load_balancing_scheme = ""
+
+  ip_address = google_compute_address.psc_address.self_link
+  network    = google_compute_network.vpc_network.self_link
+  target     = data.google_sql_database_instance.db_instance.psc_service_attachment_link
+}
+// [END cloud_sql_postgres_instance_psc_endpoint]
+
+# [START setup app instance]
 data "google_compute_image" "custom_image" {
   family = var.image_family
 }
@@ -113,4 +132,14 @@ resource "google_compute_instance" "app_instance" {
       nat_ip = google_compute_address.external_ip.address
     }
   }
+  # metadata = {
+  #   startup-script = <<-EOT
+  #   #!/bin/bash
+  #   set -e      
+  #   sudo echo "DB_HOST=${google_sql_database_instance.db_instance.private_ip_address}" > /opt/myapp/app.properties
+  #   sudo echo "DB_PASSWORD=${random_password.db_password.result}" > /opt/myapp/app.properties
+
+  #   EOT
+  # }
 }
+# [END setup app instance]
