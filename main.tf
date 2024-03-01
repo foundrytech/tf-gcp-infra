@@ -152,14 +152,19 @@ resource "google_compute_instance" "app_instance" {
       nat_ip = google_compute_address.external_ip.address
     }
   }
-  # metadata = {
-  #   startup-script = <<-EOT
-  #   #!/bin/bash
-  #   set -e      
-  #   sudo echo "DB_HOST=${google_sql_database_instance.db_instance.private_ip_address}" > /opt/myapp/app.properties
-  #   sudo echo "DB_PASSWORD=${random_password.db_password.result}" > /opt/myapp/app.properties
+  metadata = {
+    startup-script = <<-EOT
+    #!/bin/bash
+    set -e
+    
+    sudo echo "DB_NAME=webapp" > /opt/myapp/app.properties
+    sudo echo "DB_USER=webapp" > /opt/myapp/app.properties
+    suod echo "DB_PORT=5432" > /opt/myapp/app.properties
+    sudo echo "DB_PASSWORD=${random_password.db_password.result}" > /opt/myapp/app.properties
+    sudo echo "DB_HOST=${google_sql_database_instance.db_instance.private_ip_address}" > /opt/myapp/app.properties
 
-  #   EOT
-  # }
+    sudo cat /opt/myapp/app.properties
+    EOT
+  }
 }
 # [END setup app instance]
