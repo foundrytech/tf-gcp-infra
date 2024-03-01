@@ -14,5 +14,5 @@ output "region" {
 
 output "nat_ip" {
   description = "Public IP address of the example compute instance."
-  value       = google_compute_instance.webapp_instance.network_interface[0].access_config[0].nat_ip
+  value       = google_compute_instance.app_instance.network_interface[0].access_config[0].nat_ip
 }
