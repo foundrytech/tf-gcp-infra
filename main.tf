@@ -15,10 +15,9 @@ resource "google_compute_subnetwork" "app_subnet" {
 }
 
 resource "google_compute_subnetwork" "db_subnet" {
-  name                     = var.db_subnet_name
-  ip_cidr_range            = var.db_ip_cidr_range
-  network                  = google_compute_network.vpc_network.self_link
-  private_ip_google_access = true
+  name          = var.db_subnet_name
+  ip_cidr_range = var.db_ip_cidr_range
+  network       = google_compute_network.vpc_network.self_link
 }
 
 # Add a route to 0.0.0.0/0 for the vpc network
@@ -46,7 +45,7 @@ resource "google_compute_firewall" "restrict-ssh" {
   name    = var.ssh_firewall_name
   network = google_compute_network.vpc_network.self_link
 
-  allow {
+  deny {
     protocol = var.protocol
     ports    = [var.ssh_port]
   }
@@ -107,7 +106,7 @@ resource "google_sql_database" "db" {
 
 # [START setup db user and password]
 resource "random_password" "db_password" {
-  length  = 16
+  length  = var.db_password_length
   special = true
 }
 
