@@ -42,9 +42,64 @@ variable "next_hop_gateway" {
   type = string
 }
 
+variable "app_firewall_name" {
+  type = string
+}
+
+variable "protocol" {
+  type = string
+}
+
+variable "app_port" {
+  type = string
+}
+
+variable "app_source_range" {
+  type = string
+}
+
 variable "app_tag" {
   type = string
 }
+
+variable "ssh_firewall_name" {
+  type = string
+}
+
+variable "ssh_port" {
+  type = string
+}
+
+variable "ssh_source_range" {
+  type = string
+}
+
+# [START vpc_postgres_instance_private_ip_address]
+variable "psc_ip_name" {
+  type = string
+}
+
+variable "psc_purpose" {
+  type = string
+}
+
+variable "psc_ip_address_type" {
+  type = string
+}
+
+variable "psc_ip_prefix_length" {
+  type = number
+}
+
+variable "psc_forwarding_rule_name" {
+  type = string
+}
+# [END vpc_postgres_instance_private_ip_address]
+
+variable "psc_connection_service" {
+  type = string
+}
+
 // [START setup Cloud SQL instance]
 variable "db_version" {
   type = string
@@ -70,24 +125,6 @@ variable "db_disk_size" {
   type = number
 }
 // [END setup Cloud SQL instance]
-
-# [START cloud_sql_postgres_instance_psc_endpoint]
-variable "psc_name" {
-  type = string
-}
-
-variable "psc_address" {
-  type = string
-}
-
-variable "psc_address_type" {
-  type = string
-}
-
-variable "psc_forwarding_rule_name" {
-  type = string
-}
-// [END cloud_sql_postgres_instance_psc_endpoint]
 
 // [START setup db and db user]
 variable "db_name" {
@@ -121,4 +158,8 @@ variable "disk_type" {
 
 variable "disk_size" {
   type = number
+}
+
+variable "app_external_ip_name" {
+  type = string
 }
