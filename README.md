@@ -27,8 +27,9 @@ gcloud auth application-default login
 
 - `Compute Engine API`
 - `Cloud DNS API`
+- `Service Networking API`
 
-5. Project setup and configuration:
+1. Project setup and configuration:
 
 - Clone the project from forked github repo, `cd tf-gcp-infra`, `touch .gitignore` populate it with the example configs: https://github.com/github/gitignore/blob/main/Terraform.gitignore
 
@@ -134,5 +135,5 @@ output "vpc_id" {
 1. Provisioning Infrastructure with Terraform
 
 - Run `terraform init` cmd in the project folder to init the project into a terraform project
-- Run `terraform plan` command: it creates an execution plan, which lets you preview the changes that Terraform plans to make to your infrastructure.
-- Run `terraform apply` command: it executes the actions proposed in a Terraform plan.
+- Run `terraform plan -out=tfplan` command: it creates an execution plan, which lets you preview the changes that Terraform plans to make to your infrastructure.
+- Run `terraform apply tfplan` command: it executes the actions proposed in your Terraform plan.
