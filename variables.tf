@@ -131,6 +131,10 @@ variable "db_name" {
   type = string
 }
 
+variable "db_password_length" {
+  type = number
+}
+
 variable "db_user" {
   type = string
 }
