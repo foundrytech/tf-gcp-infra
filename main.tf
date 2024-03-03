@@ -15,9 +15,10 @@ resource "google_compute_subnetwork" "app_subnet" {
 }
 
 resource "google_compute_subnetwork" "db_subnet" {
-  name          = var.db_subnet_name
-  ip_cidr_range = var.db_ip_cidr_range
-  network       = google_compute_network.vpc_network.self_link
+  name                     = var.db_subnet_name
+  ip_cidr_range            = var.db_ip_cidr_range
+  network                  = google_compute_network.vpc_network.self_link
+  private_ip_google_access = true
 }
 
 # Add a route to 0.0.0.0/0 for the vpc network
@@ -29,83 +30,77 @@ resource "google_compute_route" "vpc_route" {
 }
 
 resource "google_compute_firewall" "allow-app" {
-  name    = "allow-app-traffic"
+  name    = var.app_firewall_name
   network = google_compute_network.vpc_network.self_link
 
   allow {
-    protocol = "tcp"
-    ports    = ["8080"]
+    protocol = var.protocol
+    ports    = [var.app_port]
   }
 
-  source_ranges = ["0.0.0.0/0"]
+  source_ranges = [var.app_source_range]
   target_tags   = [var.app_tag]
 }
 
 resource "google_compute_firewall" "restrict-ssh" {
-  name    = "restrict-ssh"
+  name    = var.ssh_firewall_name
   network = google_compute_network.vpc_network.self_link
 
-  deny {
-    protocol = "tcp"
-    ports    = ["22"]
+  allow {
+    protocol = var.protocol
+    ports    = [var.ssh_port]
   }
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = [var.app_tag]
+  source_ranges = [var.ssh_source_range]
 }
 
-// [START setup Cloud SQL instance]
+# [START vpc_postgres_instance_private_ip_address]
+resource "google_compute_global_address" "psc_ip_address" {
+  name          = var.psc_ip_name
+  purpose       = var.psc_purpose
+  address_type  = var.psc_ip_address_type
+  prefix_length = var.psc_ip_prefix_length
+  network       = google_compute_network.vpc_network.self_link
+}
+# [END vpc_postgres_instance_private_ip_address]
+
+# [START vpc_postgres_instance_private_ip_service_connection]
+resource "google_service_networking_connection" "psc_connection" {
+  network                 = google_compute_network.vpc_network.self_link
+  service                 = var.psc_connection_service
+  reserved_peering_ranges = [google_compute_global_address.psc_ip_address.name]
+}
+# [END vpc_postgres_instance_private_ip_service_connection]
+
+// [START setup Cloud SQL instance and enable PSC]
 resource "random_id" "db_name_suffix" {
   byte_length = 4
 }
 
 resource "google_sql_database_instance" "db_instance" {
-  name                = "postgres-instance-${random_id.db_name_suffix.hex}"
-  database_version    = "POSTGRES_15"
+  name                = "private-ip-db-instance-${random_id.db_name_suffix.hex}"
+  database_version    = var.db_version
   deletion_protection = false
 
+  depends_on = [google_service_networking_connection.psc_connection]
+
   settings {
-    edition           = "ENTERPRISE"
-    availability_type = "REGIONAL"
-    tier              = "db-f1-micro"
-    disk_type         = "PD_SSD"
-    disk_size         = "10"
+    edition           = var.db_edition
+    availability_type = var.db_availability_type
+    tier              = var.db_tier
+    disk_type         = var.db_disk_type
+    disk_size         = var.db_disk_size
 
     ip_configuration {
-      ipv4_enabled = false
-
-      psc_config {
-        psc_enabled = true
-      }
+      ipv4_enabled    = false
+      private_network = google_compute_network.vpc_network.self_link
     }
   }
 }
 # [END setup Cloud SQL instance]
 
-# [START cloud_sql_postgres_instance_psc_endpoint]
-resource "google_compute_address" "psc_address" {
-  name         = "psc-ip-address"
-  address      = "192.168.1.5"
-  address_type = "INTERNAL"
-  subnetwork   = google_compute_subnetwork.app_subnet.self_link
-}
-
-data "google_sql_database_instance" "db_instance" {
-  name = google_sql_database_instance.db_instance.name
-}
-
-resource "google_compute_forwarding_rule" "psc_forwarding_rule" {
-  name                  = "forwardingrule"
-  load_balancing_scheme = ""
-
-  ip_address = google_compute_address.psc_address.self_link
-  network    = google_compute_network.vpc_network.self_link
-  target     = data.google_sql_database_instance.db_instance.psc_service_attachment_link
-}
-// [END cloud_sql_postgres_instance_psc_endpoint]
-
 # [START create db in Cloud SQL instance]
 resource "google_sql_database" "db" {
-  name     = "webapp"
+  name     = var.db_name
   instance = google_sql_database_instance.db_instance.name
 }
 # [END create db in Cloud SQL instance]
@@ -117,7 +112,7 @@ resource "random_password" "db_password" {
 }
 
 resource "google_sql_user" "db_user" {
-  name     = "webapp"
+  name     = var.db_user
   instance = google_sql_database_instance.db_instance.name
   password = random_password.db_password.result
 }
@@ -129,7 +124,7 @@ data "google_compute_image" "custom_image" {
 }
 
 resource "google_compute_address" "external_ip" {
-  name = "external-ip-address"
+  name = var.app_external_ip_name
 }
 
 resource "google_compute_instance" "app_instance" {
@@ -154,16 +149,27 @@ resource "google_compute_instance" "app_instance" {
   }
   metadata = {
     startup-script = <<-EOT
+
     #!/bin/bash
     set -e
-    
-    sudo echo "DB_NAME=webapp" > /opt/myapp/app.properties
-    sudo echo "DB_USER=webapp" > /opt/myapp/app.properties
-    suod echo "DB_PORT=5432" > /opt/myapp/app.properties
-    sudo echo "DB_PASSWORD=${random_password.db_password.result}" > /opt/myapp/app.properties
-    sudo echo "DB_HOST=${google_sql_database_instance.db_instance.private_ip_address}" > /opt/myapp/app.properties
 
-    sudo cat /opt/myapp/app.properties
+    FLAG="APPENDED"
+    ENV_FILE="/opt/myapp/app.properties"
+
+    if ! grep -q "$FLAG" "$ENV_FILE"; then
+      {
+        echo "DB_NAME=${var.db_name}";
+        echo "DB_USER=${var.db_user}";
+        echo "DB_PORT=${var.db_port}";
+        echo "DB_PASSWORD=${random_password.db_password.result}";
+        echo "DB_HOST=${google_sql_database_instance.db_instance.private_ip_address}";
+        
+        echo "$FLAG"
+      } | sudo tee -a "$ENV_FILE" > /dev/null
+      
+    fi
+
+    cat "$ENV_FILE"
     EOT
   }
 }
