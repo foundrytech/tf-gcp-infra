@@ -103,6 +103,7 @@ resource "google_compute_firewall" "allow-app" {
 - Launch GCP VM instance using Terraform: 
 - [google_compute_instance](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance)
 - [GCP Operating system details](https://cloud.google.com/compute/docs/images/os-details)
+- note sometimes smaller machine types may not have enough resources to run the application, so choose the machine type accodingly.
 ```tf
 resource "google_compute_instance" "webapp_instance" {
   name         = var.instance_name
