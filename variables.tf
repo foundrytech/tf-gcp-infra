@@ -142,6 +142,8 @@ variable "db_user" {
 variable "db_port" {
   type = number
 }
+// [END setup db and db user]
+
 
 // [START setup Compute Engine instance]
 variable "image_family" {
@@ -156,6 +158,10 @@ variable "machine_type" {
   type = string
 }
 
+variable "allow_stopping_for_update" {
+  type = bool
+}
+
 variable "disk_type" {
   type = string
 }
@@ -166,4 +172,18 @@ variable "disk_size" {
 
 variable "app_external_ip_name" {
   type = string
+}
+// [End setup Compute Engine instance]
+
+// [START setup Cloud DNS]
+variable "dns_zone_name" {
+  type = string
+}
+
+variable "dns_type" {
+  type = string
+}
+
+variable "a_record_ttl" {
+  type = number
 }

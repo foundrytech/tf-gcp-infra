@@ -130,6 +130,7 @@ resource "google_compute_instance" "app_instance" {
   name         = var.app_instance_name
   tags         = [var.app_tag]
   machine_type = var.machine_type
+  allow_stopping_for_update = var.allow_stopping_for_update
 
   boot_disk {
     initialize_params {
@@ -173,3 +174,19 @@ resource "google_compute_instance" "app_instance" {
   }
 }
 # [END setup app instance]
+
+# [START setup DNS zone and record set]
+
+// we use data instead of resource to interact with existing DNS zone created in GCP console 
+data "google_dns_managed_zone" "dns_zone" {
+  name = var.dns_zone_name
+}
+
+resource "google_dns_record_set" "app_dns" {
+  name         = data.google_dns_managed_zone.dns_zone.dns_name
+  type         = var.dns_type
+  ttl          = var.a_record_ttl
+  managed_zone = data.google_dns_managed_zone.dns_zone.name
+  rrdatas      = [google_compute_instance.app_instance.network_interface[0].access_config[0].nat_ip]
+}
+# [END setup DNS zone and record set]
