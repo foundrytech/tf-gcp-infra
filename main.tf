@@ -126,10 +126,33 @@ resource "google_compute_address" "external_ip" {
   name = var.app_external_ip_name
 }
 
+resource "google_service_account" "service_account" {
+  account_id   = var.service_account_id
+  display_name = var.service_account_name
+}
+
+resource "google_project_iam_binding" "logging_admin_iam" {
+  project = var.project_id
+  role    = var.service_account_role1
+
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
+}
+
+resource "google_project_iam_binding" "monitoring_metric_writer_iam" {
+  project = var.project_id
+  role    = var.service_account_role2
+
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
+}
+
 resource "google_compute_instance" "app_instance" {
-  name         = var.app_instance_name
-  tags         = [var.app_tag]
-  machine_type = var.machine_type
+  name                      = var.app_instance_name
+  tags                      = [var.app_tag]
+  machine_type              = var.machine_type
   allow_stopping_for_update = var.allow_stopping_for_update
 
   boot_disk {
@@ -172,11 +195,15 @@ resource "google_compute_instance" "app_instance" {
     cat "$ENV_FILE"
     EOT
   }
+
+  service_account {
+    email  = google_service_account.service_account.email
+    scopes = var.service_account_scopes
+  }
 }
 # [END setup app instance]
 
 # [START setup DNS zone and record set]
-
 // we use data instead of resource to interact with existing DNS zone created in GCP console 
 data "google_dns_managed_zone" "dns_zone" {
   name = var.dns_zone_name
