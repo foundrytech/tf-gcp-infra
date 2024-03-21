@@ -131,18 +131,18 @@ resource "google_service_account" "service_account" {
   display_name = var.service_account_name
 }
 
-resource "google_service_account_iam_binding" "logging_admin_iam" {
-  service_account_id = google_service_account.service_account.name
-  role               = var.service_account_role1
+resource "google_project_iam_binding" "logging_admin_iam" {
+  project = var.project_id
+  role    = var.service_account_role1
 
   members = [
     "serviceAccount:${google_service_account.service_account.email}",
   ]
 }
 
-resource "google_service_account_iam_binding" "monitoring_metric_writer_iam" {
-  service_account_id = google_service_account.service_account.name
-  role               = var.service_account_role2
+resource "google_project_iam_binding" "monitoring_metric_writer_iam" {
+  project = var.project_id
+  role    = var.service_account_role2
 
   members = [
     "serviceAccount:${google_service_account.service_account.email}",

@@ -1,16 +1,16 @@
-variable "vpc_name" {
-  type = string
-}
-
-variable "routing_mode" {
-  type = string
-}
-
 variable "project_id" {
   type = string
 }
 
 variable "region" {
+  type = string
+}
+
+variable "vpc_name" {
+  type = string
+}
+
+variable "routing_mode" {
   type = string
 }
 
