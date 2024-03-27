@@ -182,11 +182,11 @@ variable "service_account_name" {
   type = string
 }
 
-variable "service_account_role1" {
+variable "role_for_logging" {
   type = string
 }
 
-variable "service_account_role2" {
+variable "role_for_monitoring" {
   type = string
 }
 
@@ -208,3 +208,44 @@ variable "a_record_ttl" {
   type = number
 }
 // [END setup Cloud DNS]
+
+// [START Pub/Sub]
+variable "pubsub_topic_name" {
+  type = string
+}
+
+variable "message_retention_duration" {
+  type = string
+}
+
+variable "role_for_pubsub_publisher" {
+  type = string
+}
+
+variable "pubsub_subscription_name" {
+  type = string
+}
+
+variable "subscription_expiration_ttl" {
+  type = string
+}
+
+variable "ack_deadline_seconds" {
+  type = number
+}
+
+variable "enable_message_ordering" {
+  type = bool
+}
+
+variable "minimun_backoff" {
+  type = string
+}
+
+variable "maximum_backoff" {
+  type = string
+}
+
+variable "role_for_pubsub_subscriber" {
+  type = string
+}
