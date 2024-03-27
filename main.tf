@@ -217,3 +217,40 @@ resource "google_dns_record_set" "app_dns" {
   rrdatas      = [google_compute_instance.app_instance.network_interface[0].access_config[0].nat_ip]
 }
 # [END setup DNS zone and record set]
+
+# [START Pub/Sub topic, subscription and IAM binding]
+resource "google_pubsub_topic" "topic" {
+  name = var.pubsub_topic_name
+
+  message_retention_duration = var.message_retention_duration
+}
+
+resource "google_pubsub_subscription" "subscription" {
+  name  = var.pubsub_subscription_name
+  topic = google_pubsub_topic.topic.id
+
+  message_retention_duration = var.message_retention_duration
+  retain_acked_messages      = true
+
+  expiration_policy {
+    ttl = var.subscription_expiration_ttl
+  }
+
+  ack_deadline_seconds    = var.ack_deadline_seconds
+  enable_message_ordering = var.enable_message_ordering
+
+  retry_policy {
+    minimum_backoff = var.minimun_backoff
+    maximum_backoff = var.maximum_backoff
+  }
+}
+
+resource "google_pubsub_topic_iam_binding" "pubsub_publisher_iam" {
+  topic = google_pubsub_topic.topic.name
+  role  = var.service_account_role3
+
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
+}
+//[END Pub/Sub topic, subscription and IAM binding]
