@@ -182,11 +182,11 @@ variable "service_account_name" {
   type = string
 }
 
-variable "service_account_role1" {
+variable "role_for_logging" {
   type = string
 }
 
-variable "service_account_role2" {
+variable "role_for_monitoring" {
   type = string
 }
 
@@ -218,6 +218,10 @@ variable "message_retention_duration" {
   type = string
 }
 
+variable "role_for_pubsub_publisher" {
+  type = string
+}
+
 variable "pubsub_subscription_name" {
   type = string
 }
@@ -242,6 +246,6 @@ variable "maximum_backoff" {
   type = string
 }
 
-variable "service_account_role3" {
+variable "role_for_pubsub_subscriber" {
   type = string
 }

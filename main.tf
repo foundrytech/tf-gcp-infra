@@ -133,7 +133,7 @@ resource "google_service_account" "service_account" {
 
 resource "google_project_iam_binding" "logging_admin_iam" {
   project = var.project_id
-  role    = var.service_account_role1
+  role    = var.role_for_logging
 
   members = [
     "serviceAccount:${google_service_account.service_account.email}",
@@ -142,7 +142,7 @@ resource "google_project_iam_binding" "logging_admin_iam" {
 
 resource "google_project_iam_binding" "monitoring_metric_writer_iam" {
   project = var.project_id
-  role    = var.service_account_role2
+  role    = var.role_for_monitoring
 
   members = [
     "serviceAccount:${google_service_account.service_account.email}",
@@ -225,6 +225,15 @@ resource "google_pubsub_topic" "topic" {
   message_retention_duration = var.message_retention_duration
 }
 
+resource "google_pubsub_topic_iam_binding" "pubsub_publisher_iam" {
+  topic = google_pubsub_topic.topic.name
+  role  = var.role_for_pubsub_publisher
+
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}",
+  ]
+}
+
 resource "google_pubsub_subscription" "subscription" {
   name  = var.pubsub_subscription_name
   topic = google_pubsub_topic.topic.id
@@ -245,9 +254,9 @@ resource "google_pubsub_subscription" "subscription" {
   }
 }
 
-resource "google_pubsub_topic_iam_binding" "pubsub_publisher_iam" {
-  topic = google_pubsub_topic.topic.name
-  role  = var.service_account_role3
+resource "google_pubsub_subscription_iam_binding" "run_invoker_iam" {
+  subscription = google_pubsub_subscription.subscription.name
+  role         = var.role_for_pubsub_subscriber
 
   members = [
     "serviceAccount:${google_service_account.service_account.email}",
