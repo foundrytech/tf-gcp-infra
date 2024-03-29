@@ -221,31 +221,130 @@ variable "message_retention_duration" {
 variable "role_for_pubsub_publisher" {
   type = string
 }
+// [END Pub/Sub]
 
-variable "pubsub_subscription_name" {
+// [START setup Cloud Functions]
+variable "bucket_location" {
   type = string
 }
 
-variable "subscription_expiration_ttl" {
+variable "archive_file_type" {
   type = string
 }
 
-variable "ack_deadline_seconds" {
+variable "archive_file_source_dir" {
+  type = string
+}
+
+variable "archive_file_output_path" {
+  type = string
+}
+
+variable "cloud_function_service_account_id" {
+  type = string
+}
+
+variable "cloud_function_service_account_name" {
+  type = string
+}
+
+variable "storage_bucket_object_name" {
+  type = string
+}
+
+variable "cloudfunctions2_function_name" {
+  type = string
+}
+
+variable "cloudfunctions2_function_location" {
+  type = string
+}
+
+variable "cloudfunctions2_function_runtime" {
+  type = string
+}
+
+variable "cloudfunctions2_function_entry_point" {
+  type = string
+}
+
+variable "cloudfunctions2_function_available_memory" {
+  type = string
+}
+
+variable "cloudfunctions2_function_available_cpu" {
+  type = string
+}
+
+variable "cloudfunctions2_function_timeout_seconds" {
   type = number
 }
 
-variable "enable_message_ordering" {
-  type = bool
+variable "max_instance_request_concurrency" {
+  type = number
 }
 
-variable "minimun_backoff" {
+variable "min_instance_count" {
+  type = number
+}
+
+variable "max_instance_count" {
+  type = number
+}
+
+// environment_variables 
+variable "domain_name" {
   type = string
 }
 
-variable "maximum_backoff" {
+variable "mailgun_private_api_key" {
+  type = string
+}
+
+variable "sender" {
+  type = string
+}
+
+variable "subject" {
+  type = string
+}
+
+variable "ingress_settings" {
+  type = string
+}
+
+variable "all_traffic_on_latest_revision" {
+  type = bool
+}
+
+variable "event_trigger_region" {
+  type = string
+}
+
+variable "event_trigger_type" {
+  type = string
+}
+
+variable "event_retry_policy" {
   type = string
 }
 
 variable "role_for_pubsub_subscriber" {
+  type = string
+}
+
+variable "role_for_cloud_functions_invoker" {
+  type = string
+}
+
+variable "vpc_connector_name" {
+  type = string
+}
+
+variable "vpc_connector_ip_cidr_range" {
+  type = string
+}
+
+variable "role_for_cloudsql_client" {
   type = string
 }
