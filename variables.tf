@@ -336,3 +336,15 @@ variable "role_for_pubsub_subscriber" {
 variable "role_for_cloud_functions_invoker" {
   type = string
 }
+
+variable "vpc_connector_name" {
+  type = string
+}
+
+variable "vpc_connector_ip_cidr_range" {
+  type = string
+}
+
+variable "role_for_cloudsql_client" {
+  type = string
+}

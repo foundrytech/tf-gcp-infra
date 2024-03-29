@@ -278,6 +278,12 @@ resource "google_cloudfunctions2_function" "function" {
     min_instance_count               = var.min_instance_count
     max_instance_count               = var.max_instance_count
     environment_variables = {
+      DB_HOST                = google_sql_database_instance.db_instance.private_ip_address
+      DB_PORT                = var.db_port
+      DB_USER                = var.db_user
+      DB_PASSWORD            = random_password.db_password.result
+      DB_NAME                = var.db_name
+      
       DOMAIN_NAME             = var.domain_name
       MAILGUN_PRIVATE_API_KEY = var.mailgun_private_api_key
       SENDER                  = var.sender
@@ -286,6 +292,7 @@ resource "google_cloudfunctions2_function" "function" {
     ingress_settings               = var.ingress_settings
     all_traffic_on_latest_revision = var.all_traffic_on_latest_revision
     service_account_email          = google_service_account.for_cloud_function.email
+    vpc_connector                  = "projects/${var.project_id}/locations/${var.cloudfunctions2_function_location}/connectors/${google_vpc_access_connector.connector.name}"
   }
 
   event_trigger {
@@ -316,4 +323,19 @@ resource "google_cloudfunctions2_function_iam_binding" "cloudfunctions-invoker" 
   role           = var.role_for_cloud_functions_invoker
   members        = ["serviceAccount:${google_service_account.for_cloud_function.email}"]
 }
+
+# Add a VPC connector 
+resource "google_vpc_access_connector" "connector" {
+  name          = var.vpc_connector_name
+  network       = google_compute_network.vpc_network.self_link
+  ip_cidr_range = var.vpc_connector_ip_cidr_range
+}
+
+# Bind the IAM role to the Cloud Function's service account for access to Cloud SQL
+resource "google_project_iam_binding" "cloudsql_client" {
+  project = var.project_id
+  role    = var.role_for_cloudsql_client
+  members = ["serviceAccount:${google_service_account.for_cloud_function.email}"]
+}
+
 # [END setup Cloud Function]
