@@ -278,12 +278,12 @@ resource "google_cloudfunctions2_function" "function" {
     min_instance_count               = var.min_instance_count
     max_instance_count               = var.max_instance_count
     environment_variables = {
-      DB_HOST                = google_sql_database_instance.db_instance.private_ip_address
-      DB_PORT                = var.db_port
-      DB_USER                = var.db_user
-      DB_PASSWORD            = random_password.db_password.result
-      DB_NAME                = var.db_name
-      
+      DB_HOST     = google_sql_database_instance.db_instance.private_ip_address
+      DB_PORT     = var.db_port
+      DB_USER     = var.db_user
+      DB_PASSWORD = random_password.db_password.result
+      DB_NAME     = var.db_name
+
       DOMAIN_NAME             = var.domain_name
       MAILGUN_PRIVATE_API_KEY = var.mailgun_private_api_key
       SENDER                  = var.sender
@@ -324,7 +324,7 @@ resource "google_cloudfunctions2_function_iam_binding" "cloudfunctions-invoker" 
   members        = ["serviceAccount:${google_service_account.for_cloud_function.email}"]
 }
 
-# Add a VPC connector 
+# Add a VPC connector for the Cloud Function to access the Cloud SQL instance
 resource "google_vpc_access_connector" "connector" {
   name          = var.vpc_connector_name
   network       = google_compute_network.vpc_network.self_link
@@ -337,5 +337,4 @@ resource "google_project_iam_binding" "cloudsql_client" {
   role    = var.role_for_cloudsql_client
   members = ["serviceAccount:${google_service_account.for_cloud_function.email}"]
 }
-
 # [END setup Cloud Function]
