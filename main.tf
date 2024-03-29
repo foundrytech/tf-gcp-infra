@@ -45,7 +45,7 @@ resource "google_compute_firewall" "restrict-ssh" {
   name    = var.ssh_firewall_name
   network = google_compute_network.vpc_network.self_link
 
-  deny {
+  allow {
     protocol = var.protocol
     ports    = [var.ssh_port]
   }
@@ -71,12 +71,12 @@ resource "google_service_networking_connection" "psc_connection" {
 # [END vpc_postgres_instance_private_ip_service_connection]
 
 // [START setup Cloud SQL instance and enable PSC]
-resource "random_id" "db_name_suffix" {
+resource "random_id" "random_suffix" {
   byte_length = 4
 }
 
 resource "google_sql_database_instance" "db_instance" {
-  name                = "private-ip-db-instance-${random_id.db_name_suffix.hex}"
+  name                = "private-ip-db-instance-${random_id.random_suffix.hex}"
   database_version    = var.db_version
   deletion_protection = false
 
@@ -126,7 +126,7 @@ resource "google_compute_address" "external_ip" {
   name = var.app_external_ip_name
 }
 
-resource "google_service_account" "service_account" {
+resource "google_service_account" "account" {
   account_id   = var.service_account_id
   display_name = var.service_account_name
 }
@@ -136,7 +136,7 @@ resource "google_project_iam_binding" "logging_admin_iam" {
   role    = var.role_for_logging
 
   members = [
-    "serviceAccount:${google_service_account.service_account.email}",
+    "serviceAccount:${google_service_account.account.email}",
   ]
 }
 
@@ -145,7 +145,7 @@ resource "google_project_iam_binding" "monitoring_metric_writer_iam" {
   role    = var.role_for_monitoring
 
   members = [
-    "serviceAccount:${google_service_account.service_account.email}",
+    "serviceAccount:${google_service_account.account.email}",
   ]
 }
 
@@ -197,7 +197,7 @@ resource "google_compute_instance" "app_instance" {
   }
 
   service_account {
-    email  = google_service_account.service_account.email
+    email  = google_service_account.account.email
     scopes = var.service_account_scopes
   }
 }
@@ -230,36 +230,90 @@ resource "google_pubsub_topic_iam_binding" "pubsub_publisher_iam" {
   role  = var.role_for_pubsub_publisher
 
   members = [
-    "serviceAccount:${google_service_account.service_account.email}",
+    "serviceAccount:${google_service_account.account.email}",
   ]
 }
+//[END Pub/Sub topic and IAM binding]
 
-resource "google_pubsub_subscription" "subscription" {
-  name  = var.pubsub_subscription_name
-  topic = google_pubsub_topic.topic.id
+# [START setup Cloud Function]
+resource "google_storage_bucket" "bucket" {
+  name                        = "cloud-function-bucket-${random_id.random_suffix.hex}"
+  location                    = var.bucket_location
+  uniform_bucket_level_access = true
+}
 
-  message_retention_duration = var.message_retention_duration
-  retain_acked_messages      = true
+data "archive_file" "function_zip" {
+  type        = var.archive_file_type
+  source_dir  = var.archive_file_source_dir
+  output_path = var.archive_file_output_path
+}
 
-  expiration_policy {
-    ttl = var.subscription_expiration_ttl
+resource "google_storage_bucket_object" "object" {
+  name   = var.storage_bucket_object_name
+  bucket = google_storage_bucket.bucket.name
+  source = data.archive_file.function_zip.output_path
+}
+
+resource "google_cloudfunctions2_function" "function" {
+  name     = var.cloudfunctions2_function_name
+  location = var.cloudfunctions2_function_location
+
+  build_config {
+    runtime     = var.cloudfunctions2_function_runtime
+    entry_point = var.cloudfunctions2_function_entry_point
+
+    source {
+      storage_source {
+        bucket = google_storage_bucket.bucket.name
+        object = google_storage_bucket_object.object.name
+      }
+    }
   }
 
-  ack_deadline_seconds    = var.ack_deadline_seconds
-  enable_message_ordering = var.enable_message_ordering
+  service_config {
+    available_memory                 = var.cloudfunctions2_function_available_memory
+    available_cpu                    = var.cloudfunctions2_function_available_cpu
+    timeout_seconds                  = var.cloudfunctions2_function_timeout_seconds
+    max_instance_request_concurrency = var.max_instance_request_concurrency
+    min_instance_count               = var.min_instance_count
+    max_instance_count               = var.max_instance_count
+    environment_variables = {
+      DOMAIN_NAME             = var.domain_name
+      MAILGUN_PRIVATE_API_KEY = var.mailgun_private_api_key
+      SENDER                  = var.sender
+      SUBJECT                 = var.subject
+    }
+    ingress_settings               = var.ingress_settings
+    all_traffic_on_latest_revision = var.all_traffic_on_latest_revision
+    service_account_email          = google_service_account.for_cloud_function.email
+  }
 
-  retry_policy {
-    minimum_backoff = var.minimun_backoff
-    maximum_backoff = var.maximum_backoff
+  event_trigger {
+    trigger_region = var.event_trigger_region
+    event_type     = var.event_trigger_type
+    pubsub_topic   = google_pubsub_topic.topic.id
+    retry_policy   = var.event_retry_policy
   }
 }
 
-resource "google_pubsub_subscription_iam_binding" "run_invoker_iam" {
-  subscription = google_pubsub_subscription.subscription.name
-  role         = var.role_for_pubsub_subscriber
+resource "google_service_account" "for_cloud_function" {
+  account_id   = var.cloud_function_service_account_id
+  display_name = var.cloud_function_service_account_name
+}
 
+resource "google_project_iam_binding" "pubsub_subscriber" {
+  project = var.project_id
+  role    = var.role_for_pubsub_subscriber
   members = [
-    "serviceAccount:${google_service_account.service_account.email}",
+    "serviceAccount:${google_service_account.for_cloud_function.email}",
   ]
 }
-//[END Pub/Sub topic, subscription and IAM binding]
+
+resource "google_cloudfunctions2_function_iam_binding" "cloudfunctions-invoker" {
+  project        = google_cloudfunctions2_function.function.project
+  location       = google_cloudfunctions2_function.function.location
+  cloud_function = google_cloudfunctions2_function.function.name
+  role           = var.role_for_cloud_functions_invoker
+  members        = ["serviceAccount:${google_service_account.for_cloud_function.email}"]
+}
+# [END setup Cloud Function]
