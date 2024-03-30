@@ -45,7 +45,7 @@ resource "google_compute_firewall" "restrict-ssh" {
   name    = var.ssh_firewall_name
   network = google_compute_network.vpc_network.self_link
 
-  allow {
+  deny {
     protocol = var.protocol
     ports    = [var.ssh_port]
   }
