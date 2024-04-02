@@ -117,8 +117,8 @@ resource "google_sql_user" "db_user" {
 }
 // [END setup db user and password]
 
-// [START setup app instance]
-data "google_compute_image" "custom_image" {
+// [START setup app vm instance related resources]
+data "google_compute_image" "packer_image" {
   family = var.image_family
 }
 
@@ -126,7 +126,7 @@ resource "google_compute_address" "external_ip" {
   name = var.app_external_ip_name
 }
 
-resource "google_service_account" "account" {
+resource "google_service_account" "for_app_instance" {
   account_id   = var.service_account_id
   display_name = var.service_account_name
 }
@@ -136,7 +136,7 @@ resource "google_project_iam_binding" "logging_admin_iam" {
   role    = var.role_for_logging
 
   members = [
-    "serviceAccount:${google_service_account.account.email}",
+    "serviceAccount:${google_service_account.for_app_instance.email}",
   ]
 }
 
@@ -145,22 +145,20 @@ resource "google_project_iam_binding" "monitoring_metric_writer_iam" {
   role    = var.role_for_monitoring
 
   members = [
-    "serviceAccount:${google_service_account.account.email}",
+    "serviceAccount:${google_service_account.for_app_instance.email}",
   ]
 }
 
-resource "google_compute_instance" "app_instance" {
-  name                      = var.app_instance_name
-  tags                      = [var.app_tag]
-  machine_type              = var.machine_type
-  allow_stopping_for_update = var.allow_stopping_for_update
+resource "google_compute_region_instance_template" "my_template" {
+  name_prefix  = var.instance_template_name_prefix
+  region       = var.region
+  machine_type = var.machine_type
+  tags         = [var.app_tag]
 
-  boot_disk {
-    initialize_params {
-      image = data.google_compute_image.custom_image.self_link
-      type  = var.disk_type
-      size  = var.disk_size
-    }
+  disk {
+    source_image = data.google_compute_image.packer_image.self_link
+    type         = var.disk_type
+    disk_size_gb = var.disk_size
   }
 
   network_interface {
@@ -197,11 +195,80 @@ resource "google_compute_instance" "app_instance" {
   }
 
   service_account {
-    email  = google_service_account.account.email
+    email  = google_service_account.for_app_instance.email
     scopes = var.service_account_scopes
   }
 }
-// [END setup app instance]
+
+resource "google_compute_health_check" "for_webapp" {
+  name = var.health_check_name
+
+  timeout_sec         = var.health_check_timeout_sec
+  check_interval_sec  = var.health_check_interval_sec
+  healthy_threshold   = var.health_check_healthy_threshold
+  unhealthy_threshold = var.health_check_unhealthy_threshold
+
+  http_health_check {
+    request_path = var.health_check_request_path
+    port         = var.health_check_port
+  }
+
+  log_config {
+    enable = var.health_check_log_enabled
+  }
+}
+
+resource "google_compute_region_autoscaler" "my_region_autoscaler" {
+  name   = var.autoscaler_name
+  region = var.region
+  target = google_compute_region_instance_group_manager.my_region_igm.id
+
+  autoscaling_policy {
+    min_replicas    = var.autoscaling_policy_min_replicas
+    max_replicas    = var.autoscaling_policy_max_replicas
+    cooldown_period = var.autoscaling_policy_cool_down_period_sec
+
+    cpu_utilization {
+      target = var.autoscaling_policy_cpu_utilization_target
+    }
+    scale_in_control {
+      max_scaled_in_replicas {
+        fixed = var.autoscaling_policy_scale_in_control_max_scaled_in_replicas
+      }
+      time_window_sec = var.autoscaling_policy_scale_in_control_time_window_sec
+    }
+  }
+}
+
+resource "google_compute_region_instance_group_manager" "my_region_igm" {
+  name                      = var.instance_group_manager_name
+  base_instance_name        = var.instance_group_manager_base_instance_name
+  region                    = var.region
+  distribution_policy_zones = ["${var.region}-a", "${var.region}-c", "${var.region}-f"]
+
+  version {
+    name              = var.instance_group_manager_version_name
+    instance_template = google_compute_region_instance_template.my_template.id
+
+  }
+
+  auto_healing_policies {
+    health_check      = google_compute_health_check.for_webapp.id
+    initial_delay_sec = 300
+  }
+
+  named_port {
+    name = "http"
+    port = 8080
+  }
+}
+// [END setup app vm instance related resources]
+
+// [START setup Load Balancer]
+resource "google_compute_global_address" "lb_ip" {
+  name = "lb-ip"
+}
+
 
 // [START setup DNS zone and record set]
 # we use data instead of resource to interact with existing DNS zone created in GCP console 
@@ -214,7 +281,7 @@ resource "google_dns_record_set" "app_dns" {
   type         = var.dns_type
   ttl          = var.a_record_ttl
   managed_zone = data.google_dns_managed_zone.dns_zone.name
-  rrdatas      = [google_compute_instance.app_instance.network_interface[0].access_config[0].nat_ip]
+  rrdatas      = [google_compute_global_address.lb_ip.address]
 }
 // [END setup DNS zone and record set]
 
