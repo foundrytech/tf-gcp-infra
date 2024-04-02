@@ -52,7 +52,7 @@ resource "google_compute_firewall" "restrict-ssh" {
   source_ranges = [var.ssh_source_range]
 }
 
-# [START vpc_postgres_instance_private_ip_address]
+// [START vpc_postgres_instance_private_ip_address]
 resource "google_compute_global_address" "psc_ip_address" {
   name          = var.psc_ip_name
   purpose       = var.psc_purpose
@@ -60,15 +60,15 @@ resource "google_compute_global_address" "psc_ip_address" {
   prefix_length = var.psc_ip_prefix_length
   network       = google_compute_network.vpc_network.self_link
 }
-# [END vpc_postgres_instance_private_ip_address]
+// [END vpc_postgres_instance_private_ip_address]
 
-# [START vpc_postgres_instance_private_ip_service_connection]
+// [START vpc_postgres_instance_private_ip_service_connection]
 resource "google_service_networking_connection" "psc_connection" {
   network                 = google_compute_network.vpc_network.self_link
   service                 = var.psc_connection_service
   reserved_peering_ranges = [google_compute_global_address.psc_ip_address.name]
 }
-# [END vpc_postgres_instance_private_ip_service_connection]
+// [END vpc_postgres_instance_private_ip_service_connection]
 
 // [START setup Cloud SQL instance and enable PSC]
 resource "random_id" "random_suffix" {
@@ -95,16 +95,16 @@ resource "google_sql_database_instance" "db_instance" {
     }
   }
 }
-# [END setup Cloud SQL instance]
+// [END setup Cloud SQL instance]
 
-# [START create db in Cloud SQL instance]
+// [START create db in Cloud SQL instance]
 resource "google_sql_database" "db" {
   name     = var.db_name
   instance = google_sql_database_instance.db_instance.name
 }
-# [END create db in Cloud SQL instance]
+// [END create db in Cloud SQL instance]
 
-# [START setup db user and password]
+// [START setup db user and password]
 resource "random_password" "db_password" {
   length  = var.db_password_length
   special = true
@@ -117,7 +117,7 @@ resource "google_sql_user" "db_user" {
 }
 // [END setup db user and password]
 
-# [START setup app instance]
+// [START setup app instance]
 data "google_compute_image" "custom_image" {
   family = var.image_family
 }
@@ -201,10 +201,10 @@ resource "google_compute_instance" "app_instance" {
     scopes = var.service_account_scopes
   }
 }
-# [END setup app instance]
+// [END setup app instance]
 
-# [START setup DNS zone and record set]
-// we use data instead of resource to interact with existing DNS zone created in GCP console 
+// [START setup DNS zone and record set]
+# we use data instead of resource to interact with existing DNS zone created in GCP console 
 data "google_dns_managed_zone" "dns_zone" {
   name = var.dns_zone_name
 }
@@ -216,9 +216,9 @@ resource "google_dns_record_set" "app_dns" {
   managed_zone = data.google_dns_managed_zone.dns_zone.name
   rrdatas      = [google_compute_instance.app_instance.network_interface[0].access_config[0].nat_ip]
 }
-# [END setup DNS zone and record set]
+// [END setup DNS zone and record set]
 
-# [START Pub/Sub topic, subscription and IAM binding]
+// [START Pub/Sub topic, subscription and IAM binding]
 resource "google_pubsub_topic" "topic" {
   name = var.pubsub_topic_name
 
@@ -235,7 +235,7 @@ resource "google_pubsub_topic_iam_binding" "pubsub_publisher_iam" {
 }
 //[END Pub/Sub topic and IAM binding]
 
-# [START setup Cloud Function]
+// [START setup Cloud Function]
 resource "google_storage_bucket" "bucket" {
   name                        = "cloud-function-bucket-${random_id.random_suffix.hex}"
   location                    = var.bucket_location
@@ -337,4 +337,4 @@ resource "google_project_iam_binding" "cloudsql_client" {
   role    = var.role_for_cloudsql_client
   members = ["serviceAccount:${google_service_account.for_cloud_function.email}"]
 }
-# [END setup Cloud Function]
+// [END setup Cloud Function]
