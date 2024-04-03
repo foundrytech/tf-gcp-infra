@@ -164,10 +164,8 @@ resource "google_compute_region_instance_template" "my_template" {
   network_interface {
     network    = google_compute_network.vpc_network.self_link
     subnetwork = google_compute_subnetwork.app_subnet.self_link
-    access_config {
-      nat_ip = google_compute_address.external_ip.address
-    }
   }
+
   metadata = {
     startup-script = <<-EOT
 
@@ -269,7 +267,6 @@ resource "google_compute_global_address" "lb_ip" {
   name = "lb-ip"
 }
 
-
 // [START setup DNS zone and record set]
 # we use data instead of resource to interact with existing DNS zone created in GCP console 
 data "google_dns_managed_zone" "dns_zone" {
@@ -297,7 +294,7 @@ resource "google_pubsub_topic_iam_binding" "pubsub_publisher_iam" {
   role  = var.role_for_pubsub_publisher
 
   members = [
-    "serviceAccount:${google_service_account.account.email}",
+    "serviceAccount:${google_service_account.for_app_instance.email}",
   ]
 }
 //[END Pub/Sub topic and IAM binding]
