@@ -54,11 +54,7 @@ variable "app_port" {
   type = string
 }
 
-variable "app_source_range" {
-  type = string
-}
-
-variable "app_tag" {
+variable "lb_forwarding_rule_name" {
   type = string
 }
 
@@ -223,7 +219,30 @@ variable "health_check_port" {
 variable "health_check_log_enabled" {
   type = bool
 }
+# compute region instance group manager 
+variable "instance_group_manager_name" {
+  type = string
+}
 
+variable "instance_group_manager_base_instance_name" {
+  type = string
+}
+
+variable "instance_group_manager_version_name" {
+  type = string
+}
+
+variable "auto_healing_policies_initial_delay_sec" {
+  type = string
+}
+
+variable "instance_group_manager_named_port_name" {
+  type = string
+}
+
+variable "instance_group_manager_named_port_port" {
+  type = number
+}
 # region autoscaler
 variable "autoscaler_name" {
   type = string
@@ -250,31 +269,6 @@ variable "autoscaling_policy_scale_in_control_max_scaled_in_replicas" {
 }
 
 variable "autoscaling_policy_scale_in_control_time_window_sec" {
-  type = number
-}
-
-# compute region instance group manager 
-variable "instance_group_manager_name" {
-  type = string
-}
-
-variable "instance_group_manager_base_instance_name" {
-  type = string
-}
-
-variable "instance_group_manager_version_name" {
-  type = string
-}
-
-variable "auto_healing_policies_initial_delay_sec" {
-  type = string
-}
-
-variable "instance_group_manager_named_port_name" {
-  type = string
-}
-
-variable "instance_group_manager_named_port_port" {
   type = number
 }
 // [End vm instance related variables]

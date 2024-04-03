@@ -37,8 +37,10 @@ resource "google_compute_firewall" "allow-app" {
     ports    = [var.app_port]
   }
 
-  source_ranges = [var.app_source_range]
-  target_tags   = [var.app_tag]
+  source_ranges = data.google_compute_global_forwarding_rule.lb.ip_address
+}
+data "google_compute_global_forwarding_rule" "lb" {
+  name = var.lb_forwarding_rule_name
 }
 
 resource "google_compute_firewall" "restrict-ssh" {
@@ -153,12 +155,16 @@ resource "google_compute_region_instance_template" "my_template" {
   name_prefix  = var.instance_template_name_prefix
   region       = var.region
   machine_type = var.machine_type
-  tags         = [var.app_tag]
 
   disk {
     source_image = data.google_compute_image.packer_image.self_link
     type         = var.disk_type
     disk_size_gb = var.disk_size
+  }
+
+  service_account {
+    email  = google_service_account.for_app_instance.email
+    scopes = var.service_account_scopes
   }
 
   network_interface {
@@ -192,10 +198,7 @@ resource "google_compute_region_instance_template" "my_template" {
     EOT
   }
 
-  service_account {
-    email  = google_service_account.for_app_instance.email
-    scopes = var.service_account_scopes
-  }
+
 }
 
 resource "google_compute_health_check" "for_webapp" {
@@ -213,28 +216,6 @@ resource "google_compute_health_check" "for_webapp" {
 
   log_config {
     enable = var.health_check_log_enabled
-  }
-}
-
-resource "google_compute_region_autoscaler" "my_region_autoscaler" {
-  name   = var.autoscaler_name
-  region = var.region
-  target = google_compute_region_instance_group_manager.my_region_igm.id
-
-  autoscaling_policy {
-    min_replicas    = var.autoscaling_policy_min_replicas
-    max_replicas    = var.autoscaling_policy_max_replicas
-    cooldown_period = var.autoscaling_policy_cool_down_period_sec
-
-    cpu_utilization {
-      target = var.autoscaling_policy_cpu_utilization_target
-    }
-    scale_in_control {
-      max_scaled_in_replicas {
-        fixed = var.autoscaling_policy_scale_in_control_max_scaled_in_replicas
-      }
-      time_window_sec = var.autoscaling_policy_scale_in_control_time_window_sec
-    }
   }
 }
 
@@ -258,6 +239,28 @@ resource "google_compute_region_instance_group_manager" "my_region_igm" {
   named_port {
     name = "http"
     port = 8080
+  }
+}
+
+resource "google_compute_region_autoscaler" "my_region_autoscaler" {
+  name   = var.autoscaler_name
+  region = var.region
+  target = google_compute_region_instance_group_manager.my_region_igm.id
+
+  autoscaling_policy {
+    min_replicas    = var.autoscaling_policy_min_replicas
+    max_replicas    = var.autoscaling_policy_max_replicas
+    cooldown_period = var.autoscaling_policy_cool_down_period_sec
+
+    cpu_utilization {
+      target = var.autoscaling_policy_cpu_utilization_target
+    }
+    scale_in_control {
+      max_scaled_in_replicas {
+        fixed = var.autoscaling_policy_scale_in_control_max_scaled_in_replicas
+      }
+      time_window_sec = var.autoscaling_policy_scale_in_control_time_window_sec
+    }
   }
 }
 // [END setup app vm instance related resources]
