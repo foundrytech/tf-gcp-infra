@@ -54,11 +54,7 @@ variable "app_port" {
   type = string
 }
 
-variable "app_source_range" {
-  type = string
-}
-
-variable "app_tag" {
+variable "lb_forwarding_rule_name" {
   type = string
 }
 
@@ -74,7 +70,7 @@ variable "ssh_source_range" {
   type = string
 }
 
-# [START vpc_postgres_instance_private_ip_address]
+// [START vpc_postgres_instance_private_ip_address]
 variable "psc_ip_name" {
   type = string
 }
@@ -94,13 +90,13 @@ variable "psc_ip_prefix_length" {
 variable "psc_forwarding_rule_name" {
   type = string
 }
-# [END vpc_postgres_instance_private_ip_address]
+// [END vpc_postgres_instance_private_ip_address]
 
 variable "psc_connection_service" {
   type = string
 }
 
-// [START setup Cloud SQL instance]
+// [START Cloud SQL instance]
 variable "db_version" {
   type = string
 }
@@ -124,9 +120,9 @@ variable "db_disk_type" {
 variable "db_disk_size" {
   type = number
 }
-// [END setup Cloud SQL instance]
+// [END Cloud SQL instance]
 
-// [START setup db and db user]
+// [START db and db user]
 variable "db_name" {
   type = string
 }
@@ -142,32 +138,12 @@ variable "db_user" {
 variable "db_port" {
   type = number
 }
-// [END setup db and db user]
+// [END db and db user]
 
 
-// [START setup Compute Engine instance]
+// [START vm instance related variables]
 variable "image_family" {
   type = string
-}
-
-variable "app_instance_name" {
-  type = string
-}
-
-variable "machine_type" {
-  type = string
-}
-
-variable "allow_stopping_for_update" {
-  type = bool
-}
-
-variable "disk_type" {
-  type = string
-}
-
-variable "disk_size" {
-  type = number
 }
 
 variable "app_external_ip_name" {
@@ -190,12 +166,114 @@ variable "role_for_monitoring" {
   type = string
 }
 
+# Instance template
+variable "instance_template_name_prefix" {
+  type = string
+}
+
+variable "machine_type" {
+  type = string
+}
+
+variable "disk_type" {
+  type = string
+}
+
+variable "disk_size" {
+  type = number
+}
+
 variable "service_account_scopes" {
   type = list(string)
 }
-// [End setup Compute Engine instance]
 
-// [START setup Cloud DNS]
+# Health check
+variable "health_check_name" {
+  type = string
+}
+
+variable "health_check_timeout_sec" {
+  type = number
+}
+
+variable "health_check_interval_sec" {
+  type = number
+}
+
+variable "health_check_healthy_threshold" {
+  type = number
+}
+
+variable "health_check_unhealthy_threshold" {
+  type = number
+}
+
+variable "health_check_request_path" {
+  type = string
+}
+
+variable "health_check_port" {
+  type = number
+}
+
+variable "health_check_log_enabled" {
+  type = bool
+}
+# compute region instance group manager 
+variable "instance_group_manager_name" {
+  type = string
+}
+
+variable "instance_group_manager_base_instance_name" {
+  type = string
+}
+
+variable "instance_group_manager_version_name" {
+  type = string
+}
+
+variable "auto_healing_policies_initial_delay_sec" {
+  type = string
+}
+
+variable "instance_group_manager_named_port_name" {
+  type = string
+}
+
+variable "instance_group_manager_named_port_port" {
+  type = number
+}
+# region autoscaler
+variable "autoscaler_name" {
+  type = string
+}
+
+variable "autoscaling_policy_min_replicas" {
+  type = number
+}
+
+variable "autoscaling_policy_max_replicas" {
+  type = number
+}
+
+variable "autoscaling_policy_cool_down_period_sec" {
+  type = number
+}
+
+variable "autoscaling_policy_cpu_utilization_target" {
+  type = number
+}
+
+variable "autoscaling_policy_scale_in_control_max_scaled_in_replicas" {
+  type = number
+}
+
+variable "autoscaling_policy_scale_in_control_time_window_sec" {
+  type = number
+}
+// [End vm instance related variables]
+
+// [START Cloud DNS]
 variable "dns_zone_name" {
   type = string
 }

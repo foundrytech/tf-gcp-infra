@@ -37,8 +37,10 @@ resource "google_compute_firewall" "allow-app" {
     ports    = [var.app_port]
   }
 
-  source_ranges = [var.app_source_range]
-  target_tags   = [var.app_tag]
+  source_ranges = data.google_compute_global_forwarding_rule.lb.ip_address
+}
+data "google_compute_global_forwarding_rule" "lb" {
+  name = var.lb_forwarding_rule_name
 }
 
 resource "google_compute_firewall" "restrict-ssh" {
@@ -52,7 +54,7 @@ resource "google_compute_firewall" "restrict-ssh" {
   source_ranges = [var.ssh_source_range]
 }
 
-# [START vpc_postgres_instance_private_ip_address]
+// [START vpc_postgres_instance_private_ip_address]
 resource "google_compute_global_address" "psc_ip_address" {
   name          = var.psc_ip_name
   purpose       = var.psc_purpose
@@ -60,15 +62,15 @@ resource "google_compute_global_address" "psc_ip_address" {
   prefix_length = var.psc_ip_prefix_length
   network       = google_compute_network.vpc_network.self_link
 }
-# [END vpc_postgres_instance_private_ip_address]
+// [END vpc_postgres_instance_private_ip_address]
 
-# [START vpc_postgres_instance_private_ip_service_connection]
+// [START vpc_postgres_instance_private_ip_service_connection]
 resource "google_service_networking_connection" "psc_connection" {
   network                 = google_compute_network.vpc_network.self_link
   service                 = var.psc_connection_service
   reserved_peering_ranges = [google_compute_global_address.psc_ip_address.name]
 }
-# [END vpc_postgres_instance_private_ip_service_connection]
+// [END vpc_postgres_instance_private_ip_service_connection]
 
 // [START setup Cloud SQL instance and enable PSC]
 resource "random_id" "random_suffix" {
@@ -95,16 +97,16 @@ resource "google_sql_database_instance" "db_instance" {
     }
   }
 }
-# [END setup Cloud SQL instance]
+// [END setup Cloud SQL instance]
 
-# [START create db in Cloud SQL instance]
+// [START create db in Cloud SQL instance]
 resource "google_sql_database" "db" {
   name     = var.db_name
   instance = google_sql_database_instance.db_instance.name
 }
-# [END create db in Cloud SQL instance]
+// [END create db in Cloud SQL instance]
 
-# [START setup db user and password]
+// [START setup db user and password]
 resource "random_password" "db_password" {
   length  = var.db_password_length
   special = true
@@ -117,8 +119,8 @@ resource "google_sql_user" "db_user" {
 }
 // [END setup db user and password]
 
-# [START setup app instance]
-data "google_compute_image" "custom_image" {
+// [START setup app vm instance related resources]
+data "google_compute_image" "packer_image" {
   family = var.image_family
 }
 
@@ -126,7 +128,7 @@ resource "google_compute_address" "external_ip" {
   name = var.app_external_ip_name
 }
 
-resource "google_service_account" "account" {
+resource "google_service_account" "for_app_instance" {
   account_id   = var.service_account_id
   display_name = var.service_account_name
 }
@@ -136,7 +138,7 @@ resource "google_project_iam_binding" "logging_admin_iam" {
   role    = var.role_for_logging
 
   members = [
-    "serviceAccount:${google_service_account.account.email}",
+    "serviceAccount:${google_service_account.for_app_instance.email}",
   ]
 }
 
@@ -145,31 +147,31 @@ resource "google_project_iam_binding" "monitoring_metric_writer_iam" {
   role    = var.role_for_monitoring
 
   members = [
-    "serviceAccount:${google_service_account.account.email}",
+    "serviceAccount:${google_service_account.for_app_instance.email}",
   ]
 }
 
-resource "google_compute_instance" "app_instance" {
-  name                      = var.app_instance_name
-  tags                      = [var.app_tag]
-  machine_type              = var.machine_type
-  allow_stopping_for_update = var.allow_stopping_for_update
+resource "google_compute_region_instance_template" "my_template" {
+  name_prefix  = var.instance_template_name_prefix
+  region       = var.region
+  machine_type = var.machine_type
 
-  boot_disk {
-    initialize_params {
-      image = data.google_compute_image.custom_image.self_link
-      type  = var.disk_type
-      size  = var.disk_size
-    }
+  disk {
+    source_image = data.google_compute_image.packer_image.self_link
+    type         = var.disk_type
+    disk_size_gb = var.disk_size
+  }
+
+  service_account {
+    email  = google_service_account.for_app_instance.email
+    scopes = var.service_account_scopes
   }
 
   network_interface {
     network    = google_compute_network.vpc_network.self_link
     subnetwork = google_compute_subnetwork.app_subnet.self_link
-    access_config {
-      nat_ip = google_compute_address.external_ip.address
-    }
   }
+
   metadata = {
     startup-script = <<-EOT
 
@@ -196,15 +198,80 @@ resource "google_compute_instance" "app_instance" {
     EOT
   }
 
-  service_account {
-    email  = google_service_account.account.email
-    scopes = var.service_account_scopes
+
+}
+
+resource "google_compute_health_check" "for_webapp" {
+  name = var.health_check_name
+
+  timeout_sec         = var.health_check_timeout_sec
+  check_interval_sec  = var.health_check_interval_sec
+  healthy_threshold   = var.health_check_healthy_threshold
+  unhealthy_threshold = var.health_check_unhealthy_threshold
+
+  http_health_check {
+    request_path = var.health_check_request_path
+    port         = var.health_check_port
+  }
+
+  log_config {
+    enable = var.health_check_log_enabled
   }
 }
-# [END setup app instance]
 
-# [START setup DNS zone and record set]
-// we use data instead of resource to interact with existing DNS zone created in GCP console 
+resource "google_compute_region_instance_group_manager" "my_region_igm" {
+  name                      = var.instance_group_manager_name
+  base_instance_name        = var.instance_group_manager_base_instance_name
+  region                    = var.region
+  distribution_policy_zones = ["${var.region}-a", "${var.region}-c", "${var.region}-f"]
+
+  version {
+    name              = var.instance_group_manager_version_name
+    instance_template = google_compute_region_instance_template.my_template.id
+
+  }
+
+  auto_healing_policies {
+    health_check      = google_compute_health_check.for_webapp.id
+    initial_delay_sec = 300
+  }
+
+  named_port {
+    name = "http"
+    port = 8080
+  }
+}
+
+resource "google_compute_region_autoscaler" "my_region_autoscaler" {
+  name   = var.autoscaler_name
+  region = var.region
+  target = google_compute_region_instance_group_manager.my_region_igm.id
+
+  autoscaling_policy {
+    min_replicas    = var.autoscaling_policy_min_replicas
+    max_replicas    = var.autoscaling_policy_max_replicas
+    cooldown_period = var.autoscaling_policy_cool_down_period_sec
+
+    cpu_utilization {
+      target = var.autoscaling_policy_cpu_utilization_target
+    }
+    scale_in_control {
+      max_scaled_in_replicas {
+        fixed = var.autoscaling_policy_scale_in_control_max_scaled_in_replicas
+      }
+      time_window_sec = var.autoscaling_policy_scale_in_control_time_window_sec
+    }
+  }
+}
+// [END setup app vm instance related resources]
+
+// [START setup Load Balancer]
+resource "google_compute_global_address" "lb_ip" {
+  name = "lb-ip"
+}
+
+// [START setup DNS zone and record set]
+# we use data instead of resource to interact with existing DNS zone created in GCP console 
 data "google_dns_managed_zone" "dns_zone" {
   name = var.dns_zone_name
 }
@@ -214,11 +281,11 @@ resource "google_dns_record_set" "app_dns" {
   type         = var.dns_type
   ttl          = var.a_record_ttl
   managed_zone = data.google_dns_managed_zone.dns_zone.name
-  rrdatas      = [google_compute_instance.app_instance.network_interface[0].access_config[0].nat_ip]
+  rrdatas      = [google_compute_global_address.lb_ip.address]
 }
-# [END setup DNS zone and record set]
+// [END setup DNS zone and record set]
 
-# [START Pub/Sub topic, subscription and IAM binding]
+// [START Pub/Sub topic, subscription and IAM binding]
 resource "google_pubsub_topic" "topic" {
   name = var.pubsub_topic_name
 
@@ -230,12 +297,12 @@ resource "google_pubsub_topic_iam_binding" "pubsub_publisher_iam" {
   role  = var.role_for_pubsub_publisher
 
   members = [
-    "serviceAccount:${google_service_account.account.email}",
+    "serviceAccount:${google_service_account.for_app_instance.email}",
   ]
 }
 //[END Pub/Sub topic and IAM binding]
 
-# [START setup Cloud Function]
+// [START setup Cloud Function]
 resource "google_storage_bucket" "bucket" {
   name                        = "cloud-function-bucket-${random_id.random_suffix.hex}"
   location                    = var.bucket_location
@@ -337,4 +404,4 @@ resource "google_project_iam_binding" "cloudsql_client" {
   role    = var.role_for_cloudsql_client
   members = ["serviceAccount:${google_service_account.for_cloud_function.email}"]
 }
-# [END setup Cloud Function]
+// [END setup Cloud Function]

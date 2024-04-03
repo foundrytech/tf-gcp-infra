@@ -12,9 +12,9 @@ output "region" {
   value       = var.region
 }
 
-output "nat_ip" {
-  description = "Public IP address of the example compute instance."
-  value       = google_compute_instance.app_instance.network_interface[0].access_config[0].nat_ip
+output "lb_ip" {
+  description = "Public IP address of the load balancer."
+  value       = google_compute_global_address.lb_ip.address
 }
 
 output "psc_ip_address" {
