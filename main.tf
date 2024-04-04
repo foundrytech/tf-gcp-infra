@@ -274,27 +274,27 @@ resource "google_compute_region_autoscaler" "my_region_autoscaler" {
 
 // [START setup Load Balancer]
 resource "google_service_account" "for_lb" {
-  account_id   = "lb-and-ssl"
-  display_name = "Service account for managing load balancer and SSL certificate"
+  account_id   = var.lb_service_account_id
+  display_name = var.lb_service_account_display_name
   project      = var.project_id
 }
 
 resource "google_project_iam_member" "security_admin" {
   project = var.project_id
-  role    = "roles/compute.securityAdmin"
+  role    = var.role_for_security_admin
   member  = "serviceAccount:${google_service_account.for_lb.email}"
 }
 
 resource "google_project_iam_member" "network_admin" {
   project = var.project_id
-  role    = "roles/compute.networkAdmin"
+  role    = var.role_for_network_admin
   member  = "serviceAccount:${google_service_account.for_lb.email}"
 }
 
 resource "google_compute_managed_ssl_certificate" "for_lb" {
-  name = "ssl-cert"
+  name = var.managed_ssl_certificate_name
   managed {
-    domains = ["csye6225.icu"]
+    domains = [var.managed_ssl_certificate_domain]
   }
 }
 

@@ -286,6 +286,30 @@ variable "autoscaling_policy_scale_in_control_time_window_sec" {
 // [End vm instance related variables]
 
 // [START setup Load Balancer]
+variable "lb_service_account_id" {
+  type = string
+}
+
+variable "lb_service_account_display_name" {
+  type = string
+}
+
+variable "role_for_security_admin" {
+  type = string
+}
+
+variable "role_for_network_admin" {
+  type = string
+}
+
+variable "managed_ssl_certificate_name" {
+  type = string
+}
+
+variable "managed_ssl_certificate_domain" {
+  type = string
+}
+
 variable "lb_ip_name" {
   type = string
 }
