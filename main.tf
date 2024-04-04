@@ -28,7 +28,19 @@ resource "google_compute_route" "vpc_route" {
   next_hop_gateway = var.next_hop_gateway
 }
 
-resource "google_compute_firewall" "allow-app" {
+resource "google_compute_firewall" "allow-to-lb" {
+  name    = var.lb_firewall_name
+  network = google_compute_network.vpc_network.self_link
+
+  allow {
+    protocol = var.protocol
+    ports    = [var.lb_port]
+  }
+
+  source_ranges = [var.to_lb_source_range]
+}
+
+resource "google_compute_firewall" "allow-to-app" {
   name    = var.app_firewall_name
   network = google_compute_network.vpc_network.self_link
 
@@ -37,7 +49,7 @@ resource "google_compute_firewall" "allow-app" {
     ports    = [var.app_port]
   }
 
-  source_ranges = ["0.0.0.0/0"]
+  source_ranges = var.to_app_source_ranges
 }
 
 resource "google_compute_firewall" "restrict-ssh" {
@@ -215,7 +227,7 @@ resource "google_compute_health_check" "for_webapp" {
 }
 
 resource "google_compute_region_instance_group_manager" "my_region_igm" {
-  name                      = var.instance_group_manager_name
+  name                      = "${var.instance_group_manager_name}-${random_id.random_suffix.hex}"
   base_instance_name        = var.instance_group_manager_base_instance_name
   region                    = var.region
   distribution_policy_zones = ["${var.region}-a", "${var.region}-c", "${var.region}-f"]
@@ -261,20 +273,51 @@ resource "google_compute_region_autoscaler" "my_region_autoscaler" {
 // [END setup app vm instance related resources]
 
 // [START setup Load Balancer]
+resource "google_service_account" "for_lb" {
+  account_id   = "lb-and-ssl"
+  display_name = "Service account for managing load balancer and SSL certificate"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "security_admin" {
+  project = var.project_id
+  role    = "roles/compute.securityAdmin"
+  member  = "serviceAccount:${google_service_account.for_lb.email}"
+}
+
+resource "google_project_iam_member" "network_admin" {
+  project = var.project_id
+  role    = "roles/compute.networkAdmin"
+  member  = "serviceAccount:${google_service_account.for_lb.email}"
+}
+
+resource "google_compute_managed_ssl_certificate" "for_lb" {
+  name = "ssl-cert"
+  managed {
+    domains = ["csye6225.icu"]
+  }
+}
+
 resource "google_compute_global_address" "lb_ip" {
   name = var.lb_ip_name
 }
 
 resource "google_compute_global_forwarding_rule" "for_lb" {
   name       = var.lb_frontend_name
-  target     = google_compute_target_http_proxy.for_lb.self_link
+  target     = google_compute_target_https_proxy.for_lb.self_link
   ip_address = google_compute_global_address.lb_ip.address
   port_range = var.lb_frontend_port_range
 }
 
-resource "google_compute_target_http_proxy" "for_lb" {
-  name    = var.lb_target_http_proxy_name
+resource "google_compute_target_https_proxy" "for_lb" {
+  name    = var.lb_target_https_proxy_name
   url_map = google_compute_url_map.for_lb.self_link
+  ssl_certificates = [
+    google_compute_managed_ssl_certificate.for_lb.name
+  ]
+  depends_on = [
+    google_compute_managed_ssl_certificate.for_lb
+  ]
 }
 
 resource "google_compute_url_map" "for_lb" {

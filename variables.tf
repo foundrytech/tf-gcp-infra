@@ -42,7 +42,7 @@ variable "next_hop_gateway" {
   type = string
 }
 
-variable "app_firewall_name" {
+variable "lb_firewall_name" {
   type = string
 }
 
@@ -50,8 +50,24 @@ variable "protocol" {
   type = string
 }
 
+variable "lb_port" {
+  type = string
+}
+
+variable "to_lb_source_range" {
+  type = string
+}
+
+variable "app_firewall_name" {
+  type = string
+}
+
 variable "app_port" {
   type = string
+}
+
+variable "to_app_source_ranges" {
+  type = list(string)
 }
 
 variable "ssh_firewall_name" {
@@ -282,7 +298,7 @@ variable "lb_frontend_port_range" {
   type = string
 }
 
-variable "lb_target_http_proxy_name" {
+variable "lb_target_https_proxy_name" {
   type = string
 }
 
@@ -299,7 +315,7 @@ variable "lb_to_backend_service_protocol" {
 }
 
 variable "lb_scheme" {
-  type = number
+  type = string
 }
 
 variable "lb_connection_draining_timeout_sec" {
