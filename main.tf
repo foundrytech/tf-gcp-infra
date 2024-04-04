@@ -28,7 +28,19 @@ resource "google_compute_route" "vpc_route" {
   next_hop_gateway = var.next_hop_gateway
 }
 
-resource "google_compute_firewall" "allow-app" {
+resource "google_compute_firewall" "allow-to-lb" {
+  name    = var.lb_firewall_name
+  network = google_compute_network.vpc_network.self_link
+
+  allow {
+    protocol = var.protocol
+    ports    = [var.lb_port]
+  }
+
+  source_ranges = [var.to_lb_source_range]
+}
+
+resource "google_compute_firewall" "allow-to-app" {
   name    = var.app_firewall_name
   network = google_compute_network.vpc_network.self_link
 
@@ -37,10 +49,7 @@ resource "google_compute_firewall" "allow-app" {
     ports    = [var.app_port]
   }
 
-  source_ranges = data.google_compute_global_forwarding_rule.lb.ip_address
-}
-data "google_compute_global_forwarding_rule" "lb" {
-  name = var.lb_forwarding_rule_name
+  source_ranges = var.to_app_source_ranges
 }
 
 resource "google_compute_firewall" "restrict-ssh" {
@@ -120,7 +129,7 @@ resource "google_sql_user" "db_user" {
 // [END setup db user and password]
 
 // [START setup app vm instance related resources]
-data "google_compute_image" "packer_image" {
+data "google_compute_image" "use_packer_image" {
   family = var.image_family
 }
 
@@ -157,7 +166,7 @@ resource "google_compute_region_instance_template" "my_template" {
   machine_type = var.machine_type
 
   disk {
-    source_image = data.google_compute_image.packer_image.self_link
+    source_image = data.google_compute_image.use_packer_image.self_link
     type         = var.disk_type
     disk_size_gb = var.disk_size
   }
@@ -197,8 +206,6 @@ resource "google_compute_region_instance_template" "my_template" {
     cat "$ENV_FILE"
     EOT
   }
-
-
 }
 
 resource "google_compute_health_check" "for_webapp" {
@@ -210,8 +217,8 @@ resource "google_compute_health_check" "for_webapp" {
   unhealthy_threshold = var.health_check_unhealthy_threshold
 
   http_health_check {
-    request_path = var.health_check_request_path
     port         = var.health_check_port
+    request_path = var.health_check_request_path
   }
 
   log_config {
@@ -220,7 +227,7 @@ resource "google_compute_health_check" "for_webapp" {
 }
 
 resource "google_compute_region_instance_group_manager" "my_region_igm" {
-  name                      = var.instance_group_manager_name
+  name                      = "${var.instance_group_manager_name}-${random_id.random_suffix.hex}"
   base_instance_name        = var.instance_group_manager_base_instance_name
   region                    = var.region
   distribution_policy_zones = ["${var.region}-a", "${var.region}-c", "${var.region}-f"]
@@ -233,12 +240,12 @@ resource "google_compute_region_instance_group_manager" "my_region_igm" {
 
   auto_healing_policies {
     health_check      = google_compute_health_check.for_webapp.id
-    initial_delay_sec = 300
+    initial_delay_sec = var.auto_healing_policies_initial_delay_sec
   }
 
   named_port {
-    name = "http"
-    port = 8080
+    name = var.instance_group_manager_named_port_name
+    port = var.instance_group_manager_named_port_port
   }
 }
 
@@ -266,9 +273,70 @@ resource "google_compute_region_autoscaler" "my_region_autoscaler" {
 // [END setup app vm instance related resources]
 
 // [START setup Load Balancer]
-resource "google_compute_global_address" "lb_ip" {
-  name = "lb-ip"
+resource "google_service_account" "for_lb" {
+  account_id   = var.lb_service_account_id
+  display_name = var.lb_service_account_display_name
+  project      = var.project_id
 }
+
+resource "google_project_iam_member" "security_admin" {
+  project = var.project_id
+  role    = var.role_for_security_admin
+  member  = "serviceAccount:${google_service_account.for_lb.email}"
+}
+
+resource "google_project_iam_member" "network_admin" {
+  project = var.project_id
+  role    = var.role_for_network_admin
+  member  = "serviceAccount:${google_service_account.for_lb.email}"
+}
+
+resource "google_compute_managed_ssl_certificate" "for_lb" {
+  name = var.managed_ssl_certificate_name
+  managed {
+    domains = [var.managed_ssl_certificate_domain]
+  }
+}
+
+resource "google_compute_global_address" "lb_ip" {
+  name = var.lb_ip_name
+}
+
+resource "google_compute_global_forwarding_rule" "for_lb" {
+  name       = var.lb_frontend_name
+  target     = google_compute_target_https_proxy.for_lb.self_link
+  ip_address = google_compute_global_address.lb_ip.address
+  port_range = var.lb_frontend_port_range
+}
+
+resource "google_compute_target_https_proxy" "for_lb" {
+  name    = var.lb_target_https_proxy_name
+  url_map = google_compute_url_map.for_lb.self_link
+  ssl_certificates = [
+    google_compute_managed_ssl_certificate.for_lb.name
+  ]
+  depends_on = [
+    google_compute_managed_ssl_certificate.for_lb
+  ]
+}
+
+resource "google_compute_url_map" "for_lb" {
+  name            = var.lb_name
+  default_service = google_compute_backend_service.for_lb.self_link
+}
+
+resource "google_compute_backend_service" "for_lb" {
+  name                            = var.lb_backend_service_name
+  protocol                        = var.lb_to_backend_service_protocol
+  health_checks                   = [google_compute_health_check.for_webapp.id]
+  load_balancing_scheme           = var.lb_scheme
+  connection_draining_timeout_sec = var.lb_connection_draining_timeout_sec
+
+  backend {
+    group = google_compute_region_instance_group_manager.my_region_igm.instance_group
+  }
+}
+// [END setup Load Balancer]
 
 // [START setup DNS zone and record set]
 # we use data instead of resource to interact with existing DNS zone created in GCP console 

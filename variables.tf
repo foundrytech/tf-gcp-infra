@@ -42,7 +42,7 @@ variable "next_hop_gateway" {
   type = string
 }
 
-variable "app_firewall_name" {
+variable "lb_firewall_name" {
   type = string
 }
 
@@ -50,12 +50,24 @@ variable "protocol" {
   type = string
 }
 
+variable "lb_port" {
+  type = string
+}
+
+variable "to_lb_source_range" {
+  type = string
+}
+
+variable "app_firewall_name" {
+  type = string
+}
+
 variable "app_port" {
   type = string
 }
 
-variable "lb_forwarding_rule_name" {
-  type = string
+variable "to_app_source_ranges" {
+  type = list(string)
 }
 
 variable "ssh_firewall_name" {
@@ -208,12 +220,12 @@ variable "health_check_unhealthy_threshold" {
   type = number
 }
 
-variable "health_check_request_path" {
-  type = string
-}
-
 variable "health_check_port" {
   type = number
+}
+
+variable "health_check_request_path" {
+  type = string
 }
 
 variable "health_check_log_enabled" {
@@ -272,6 +284,68 @@ variable "autoscaling_policy_scale_in_control_time_window_sec" {
   type = number
 }
 // [End vm instance related variables]
+
+// [START setup Load Balancer]
+variable "lb_service_account_id" {
+  type = string
+}
+
+variable "lb_service_account_display_name" {
+  type = string
+}
+
+variable "role_for_security_admin" {
+  type = string
+}
+
+variable "role_for_network_admin" {
+  type = string
+}
+
+variable "managed_ssl_certificate_name" {
+  type = string
+}
+
+variable "managed_ssl_certificate_domain" {
+  type = string
+}
+
+variable "lb_ip_name" {
+  type = string
+}
+
+variable "lb_frontend_name" {
+  type = string
+}
+
+variable "lb_frontend_port_range" {
+  type = string
+}
+
+variable "lb_target_https_proxy_name" {
+  type = string
+}
+
+variable "lb_name" {
+  type = string
+}
+
+variable "lb_backend_service_name" {
+  type = string
+}
+
+variable "lb_to_backend_service_protocol" {
+  type = string
+}
+
+variable "lb_scheme" {
+  type = string
+}
+
+variable "lb_connection_draining_timeout_sec" {
+  type = number
+}
+
 
 // [START Cloud DNS]
 variable "dns_zone_name" {
