@@ -89,6 +89,7 @@ resource "random_id" "random_suffix" {
 resource "google_sql_database_instance" "db_instance" {
   name                = "private-ip-db-instance-${random_id.random_suffix.hex}"
   database_version    = var.db_version
+  encryption_key_name = google_kms_crypto_key.for_db.id
   deletion_protection = false
 
   depends_on = [google_service_networking_connection.psc_connection]
@@ -160,13 +161,16 @@ resource "google_project_iam_binding" "monitoring_metric_writer_iam" {
   ]
 }
 
-resource "google_compute_region_instance_template" "my_template" {
+resource "google_compute_region_instance_template" "for_webapp" {
   name_prefix  = var.instance_template_name_prefix
   region       = var.region
   machine_type = var.machine_type
 
   disk {
     source_image = data.google_compute_image.use_packer_image.self_link
+    source_image_encryption_key {
+      kms_key_self_link = google_kms_crypto_key.for_webapp.id
+    }
     type         = var.disk_type
     disk_size_gb = var.disk_size
   }
@@ -234,8 +238,7 @@ resource "google_compute_region_instance_group_manager" "my_region_igm" {
 
   version {
     name              = var.instance_group_manager_version_name
-    instance_template = google_compute_region_instance_template.my_template.id
-
+    instance_template = google_compute_region_instance_template.for_webapp_vm.id
   }
 
   auto_healing_policies {
@@ -372,9 +375,11 @@ resource "google_pubsub_topic_iam_binding" "pubsub_publisher_iam" {
 
 // [START setup Cloud Function]
 resource "google_storage_bucket" "bucket" {
-  name                        = "cloud-function-bucket-${random_id.random_suffix.hex}"
-  location                    = var.bucket_location
-  uniform_bucket_level_access = true
+  name     = "cloud-function-bucket-${random_id.random_suffix.hex}"
+  location = var.bucket_location
+  encryption {
+    default_kms_key_name = google_kms_crypto_key.for_storage_bucket.id
+  }
 }
 
 data "archive_file" "function_zip" {
@@ -480,7 +485,7 @@ resource "google_kms_key_ring" "default" {
   location = var.region
 }
 
-resource "google_kms_crypto_key" "for_vm" {
+resource "google_kms_crypto_key" "for_webapp" {
   name            = var.key_name1
   key_ring        = google_kms_key_ring.default.id
   rotation_period = var.key_rotation_period
@@ -512,8 +517,8 @@ resource "google_service_account" "for_kms_crypto_key" {
   display_name = var.kms_crypto_key_service_account_display_name
 }
 
-resource "google_kms_crypto_key_iam_binding" "for_vm" {
-  crypto_key_id = google_kms_crypto_key.for_vm.id
+resource "google_kms_crypto_key_iam_binding" "for_webapp" {
+  crypto_key_id = google_kms_crypto_key.for_webapp.id
   role          = var.role_for_kms_crypto_key
   members       = ["serviceAccount:${google_service_account.for_kms_crypto_key.email}"]
 }
