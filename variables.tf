@@ -500,3 +500,23 @@ variable "vpc_connector_ip_cidr_range" {
 variable "role_for_cloudsql_client" {
   type = string
 }
+
+variable "key_ring_name" {
+  type = string
+}
+
+variable "key_name1" {
+  type = string
+}
+
+variable "key_name2" {
+  type = string
+}
+
+variable "key_name3" {
+  type = string
+}
+
+variable "key_rotation_period" {
+  type = string
+}

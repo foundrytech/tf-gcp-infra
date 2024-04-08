@@ -473,3 +473,29 @@ resource "google_project_iam_binding" "cloudsql_client" {
   members = ["serviceAccount:${google_service_account.for_cloud_function.email}"]
 }
 // [END setup Cloud Function]
+
+// [START setup CMEK]
+resource "google_kms_key_ring" "default" {
+  name     = var.key_ring_name
+  location = var.region
+}
+
+resource "google_kms_crypto_key" "for_vm" {
+  name            = var.key_name1
+  key_ring        = google_kms_key_ring.default.id
+  rotation_period = var.key_rotation_period
+}
+
+resource "google_kms_crypto_key" "for_db" {
+  name            = var.key_name2
+  key_ring        = google_kms_key_ring.default.id
+  rotation_period = var.key_rotation_period
+}
+
+resource "google_kms_crypto_key" "for_storage_bucket" {
+  name            = var.key_name3
+  key_ring        = google_kms_key_ring.default.id
+  rotation_period = var.key_rotation_period
+}
+
+// [End setup CMEK]
