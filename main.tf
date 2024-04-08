@@ -230,7 +230,7 @@ resource "google_compute_health_check" "for_webapp" {
   }
 }
 
-resource "google_compute_region_instance_group_manager" "my_region_igm" {
+resource "google_compute_region_instance_group_manager" "for_webapp" {
   name                      = "${var.instance_group_manager_name}-${random_id.random_suffix.hex}"
   base_instance_name        = var.instance_group_manager_base_instance_name
   region                    = var.region
@@ -238,7 +238,7 @@ resource "google_compute_region_instance_group_manager" "my_region_igm" {
 
   version {
     name              = var.instance_group_manager_version_name
-    instance_template = google_compute_region_instance_template.for_webapp_vm.id
+    instance_template = google_compute_region_instance_template.for_webapp.id
   }
 
   auto_healing_policies {
@@ -252,10 +252,10 @@ resource "google_compute_region_instance_group_manager" "my_region_igm" {
   }
 }
 
-resource "google_compute_region_autoscaler" "my_region_autoscaler" {
+resource "google_compute_region_autoscaler" "for_webapp" {
   name   = var.autoscaler_name
   region = var.region
-  target = google_compute_region_instance_group_manager.my_region_igm.id
+  target = google_compute_region_instance_group_manager.for_webapp.id
 
   autoscaling_policy {
     min_replicas    = var.autoscaling_policy_min_replicas
