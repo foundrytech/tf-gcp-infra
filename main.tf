@@ -139,7 +139,7 @@ resource "google_compute_address" "external_ip" {
 
 resource "google_service_account" "for_app_instance" {
   account_id   = var.service_account_id
-  display_name = var.service_account_name
+  display_name = var.service_account_display_name
 }
 
 resource "google_project_iam_binding" "logging_admin_iam" {
@@ -440,7 +440,7 @@ resource "google_cloudfunctions2_function" "function" {
 
 resource "google_service_account" "for_cloud_function" {
   account_id   = var.cloud_function_service_account_id
-  display_name = var.cloud_function_service_account_name
+  display_name = var.cloud_function_service_account_display_name
 }
 
 resource "google_project_iam_binding" "pubsub_subscriber" {
@@ -484,18 +484,49 @@ resource "google_kms_crypto_key" "for_vm" {
   name            = var.key_name1
   key_ring        = google_kms_key_ring.default.id
   rotation_period = var.key_rotation_period
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_kms_crypto_key" "for_db" {
   name            = var.key_name2
   key_ring        = google_kms_key_ring.default.id
   rotation_period = var.key_rotation_period
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_kms_crypto_key" "for_storage_bucket" {
   name            = var.key_name3
   key_ring        = google_kms_key_ring.default.id
   rotation_period = var.key_rotation_period
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
+resource "google_service_account" "for_kms_crypto_key" {
+  account_id   = var.kms_crypto_key_service_account_id
+  display_name = var.kms_crypto_key_service_account_display_name
+}
+
+resource "google_kms_crypto_key_iam_binding" "for_vm" {
+  crypto_key_id = google_kms_crypto_key.for_vm.id
+  role          = var.role_for_kms_crypto_key
+  members       = ["serviceAccount:${google_service_account.for_kms_crypto_key.email}"]
+}
+
+resource "google_kms_crypto_key_iam_binding" "for_db" {
+  crypto_key_id = google_kms_crypto_key.for_db.id
+  role          = var.role_for_kms_crypto_key
+  members       = ["serviceAccount:${google_service_account.for_kms_crypto_key.email}"]
+}
+
+resource "google_kms_crypto_key_iam_binding" "for_storage_bucket" {
+  crypto_key_id = google_kms_crypto_key.for_storage_bucket.id
+  role          = var.role_for_kms_crypto_key
+  members       = ["serviceAccount:${google_service_account.for_kms_crypto_key.email}"]
+}
 // [End setup CMEK]
