@@ -511,11 +511,16 @@ resource "google_kms_crypto_key_iam_member" "for_webapp" {
 }
 
 
-data "google_project" "project" {}
+resource "google_project_service_identity" "gcp_sa_cloud_sql" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "sqladmin.googleapis.com"
+}
 resource "google_kms_crypto_key_iam_member" "for_db" {
+  provider      = google-beta
   crypto_key_id = google_kms_crypto_key.for_db.id
   role          = var.role_for_kms_crypto_key
-  member        = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-cloudsql.iam.gserviceaccount.com"
+  member        = "serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}"
 }
 
 

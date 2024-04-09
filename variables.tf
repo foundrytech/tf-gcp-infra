@@ -510,5 +510,5 @@ variable "key_rotation_period" {
 }
 
 variable "role_for_kms_crypto_key" {
-  type = number
+  type = string
 }
