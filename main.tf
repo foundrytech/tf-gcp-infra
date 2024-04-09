@@ -336,7 +336,7 @@ resource "google_compute_backend_service" "for_lb" {
   connection_draining_timeout_sec = var.lb_connection_draining_timeout_sec
 
   backend {
-    group = google_compute_region_instance_group_manager.my_region_igm.instance_group
+    group = google_compute_region_instance_group_manager.for_webapp.instance_group
   }
 }
 // [END setup Load Balancer]
@@ -380,6 +380,7 @@ resource "google_storage_bucket" "bucket" {
   encryption {
     default_kms_key_name = google_kms_crypto_key.for_storage_bucket.id
   }
+  depends_on = [google_kms_crypto_key_iam_member.for_storage_bucket]
 }
 
 data "archive_file" "function_zip" {
@@ -512,26 +513,25 @@ resource "google_kms_crypto_key" "for_storage_bucket" {
   }
 }
 
-resource "google_service_account" "for_kms_crypto_key" {
-  account_id   = var.kms_crypto_key_service_account_id
-  display_name = var.kms_crypto_key_service_account_display_name
-}
-
-resource "google_kms_crypto_key_iam_binding" "for_webapp" {
+resource "google_kms_crypto_key_iam_member" "for_webapp" {
   crypto_key_id = google_kms_crypto_key.for_webapp.id
   role          = var.role_for_kms_crypto_key
-  members       = ["serviceAccount:${google_service_account.for_kms_crypto_key.email}"]
+  member        = "serviceAccount:${google_service_account.for_app_instance.email}"
 }
 
-resource "google_kms_crypto_key_iam_binding" "for_db" {
+
+data "google_project" "project" {}
+resource "google_kms_crypto_key_iam_member" "for_db" {
   crypto_key_id = google_kms_crypto_key.for_db.id
   role          = var.role_for_kms_crypto_key
-  members       = ["serviceAccount:${google_service_account.for_kms_crypto_key.email}"]
+  member        = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-cloudsql.iam.gserviceaccount.com"
 }
 
-resource "google_kms_crypto_key_iam_binding" "for_storage_bucket" {
+
+data "google_storage_project_service_account" "for_gcs" {}
+resource "google_kms_crypto_key_iam_member" "for_storage_bucket" {
   crypto_key_id = google_kms_crypto_key.for_storage_bucket.id
   role          = var.role_for_kms_crypto_key
-  members       = ["serviceAccount:${google_service_account.for_kms_crypto_key.email}"]
+  member        = "serviceAccount:${data.google_storage_project_service_account.for_gcs.email_address}"
 }
 // [End setup CMEK]

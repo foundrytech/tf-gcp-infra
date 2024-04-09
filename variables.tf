@@ -521,14 +521,6 @@ variable "key_rotation_period" {
   type = string
 }
 
-variable "kms_crypto_key_service_account_id" {
-  type = string
-}
-
-variable "kms_crypto_key_service_account_display_name" {
-  type = string
-}
-
 variable "role_for_kms_crypto_key" {
   type = number
 }
