@@ -183,6 +183,9 @@ resource "google_compute_region_instance_template" "for_webapp" {
   network_interface {
     network    = google_compute_network.vpc_network.self_link
     subnetwork = google_compute_subnetwork.app_subnet.self_link
+    access_config {
+      nat_ip = google_compute_address.external_ip.address
+    }
   }
 
   metadata = {
