@@ -487,30 +487,21 @@ resource "google_kms_key_ring" "default" {
 }
 
 resource "google_kms_crypto_key" "for_webapp" {
-  name            = var.key_name1
+  name            = "key-for-vm-${random_id.random_suffix.hex}"
   key_ring        = google_kms_key_ring.default.id
   rotation_period = var.key_rotation_period
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "google_kms_crypto_key" "for_db" {
-  name            = var.key_name2
+  name            = "key-for-db-${random_id.random_suffix.hex}"
   key_ring        = google_kms_key_ring.default.id
   rotation_period = var.key_rotation_period
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "google_kms_crypto_key" "for_storage_bucket" {
-  name            = var.key_name3
+  name            = "key-for-storage-bucket-${random_id.random_suffix.hex}"
   key_ring        = google_kms_key_ring.default.id
   rotation_period = var.key_rotation_period
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "google_kms_crypto_key_iam_member" "for_webapp" {
