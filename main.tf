@@ -89,6 +89,7 @@ resource "random_id" "random_suffix" {
 resource "google_sql_database_instance" "db_instance" {
   name                = "private-ip-db-instance-${random_id.random_suffix.hex}"
   database_version    = var.db_version
+  encryption_key_name = google_kms_crypto_key.for_db.id
   deletion_protection = false
 
   depends_on = [google_service_networking_connection.psc_connection]
@@ -139,7 +140,7 @@ resource "google_compute_address" "external_ip" {
 
 resource "google_service_account" "for_app_instance" {
   account_id   = var.service_account_id
-  display_name = var.service_account_name
+  display_name = var.service_account_display_name
 }
 
 resource "google_project_iam_binding" "logging_admin_iam" {
@@ -160,13 +161,16 @@ resource "google_project_iam_binding" "monitoring_metric_writer_iam" {
   ]
 }
 
-resource "google_compute_region_instance_template" "my_template" {
+resource "google_compute_region_instance_template" "for_webapp" {
   name_prefix  = var.instance_template_name_prefix
   region       = var.region
   machine_type = var.machine_type
 
   disk {
     source_image = data.google_compute_image.use_packer_image.self_link
+    source_image_encryption_key {
+      kms_key_self_link = google_kms_crypto_key.for_webapp.id
+    }
     type         = var.disk_type
     disk_size_gb = var.disk_size
   }
@@ -179,6 +183,9 @@ resource "google_compute_region_instance_template" "my_template" {
   network_interface {
     network    = google_compute_network.vpc_network.self_link
     subnetwork = google_compute_subnetwork.app_subnet.self_link
+    access_config {
+      nat_ip = google_compute_address.external_ip.address
+    }
   }
 
   metadata = {
@@ -226,7 +233,7 @@ resource "google_compute_health_check" "for_webapp" {
   }
 }
 
-resource "google_compute_region_instance_group_manager" "my_region_igm" {
+resource "google_compute_region_instance_group_manager" "for_webapp" {
   name                      = "${var.instance_group_manager_name}-${random_id.random_suffix.hex}"
   base_instance_name        = var.instance_group_manager_base_instance_name
   region                    = var.region
@@ -234,8 +241,7 @@ resource "google_compute_region_instance_group_manager" "my_region_igm" {
 
   version {
     name              = var.instance_group_manager_version_name
-    instance_template = google_compute_region_instance_template.my_template.id
-
+    instance_template = google_compute_region_instance_template.for_webapp.id
   }
 
   auto_healing_policies {
@@ -249,10 +255,10 @@ resource "google_compute_region_instance_group_manager" "my_region_igm" {
   }
 }
 
-resource "google_compute_region_autoscaler" "my_region_autoscaler" {
+resource "google_compute_region_autoscaler" "for_webapp" {
   name   = var.autoscaler_name
   region = var.region
-  target = google_compute_region_instance_group_manager.my_region_igm.id
+  target = google_compute_region_instance_group_manager.for_webapp.id
 
   autoscaling_policy {
     min_replicas    = var.autoscaling_policy_min_replicas
@@ -333,7 +339,7 @@ resource "google_compute_backend_service" "for_lb" {
   connection_draining_timeout_sec = var.lb_connection_draining_timeout_sec
 
   backend {
-    group = google_compute_region_instance_group_manager.my_region_igm.instance_group
+    group = google_compute_region_instance_group_manager.for_webapp.instance_group
   }
 }
 // [END setup Load Balancer]
@@ -372,9 +378,12 @@ resource "google_pubsub_topic_iam_binding" "pubsub_publisher_iam" {
 
 // [START setup Cloud Function]
 resource "google_storage_bucket" "bucket" {
-  name                        = "cloud-function-bucket-${random_id.random_suffix.hex}"
-  location                    = var.bucket_location
-  uniform_bucket_level_access = true
+  name     = "cloud-function-bucket-${random_id.random_suffix.hex}"
+  location = var.bucket_location
+  encryption {
+    default_kms_key_name = google_kms_crypto_key.for_storage_bucket.id
+  }
+  depends_on = [google_kms_crypto_key_iam_member.for_storage_bucket]
 }
 
 data "archive_file" "function_zip" {
@@ -440,7 +449,7 @@ resource "google_cloudfunctions2_function" "function" {
 
 resource "google_service_account" "for_cloud_function" {
   account_id   = var.cloud_function_service_account_id
-  display_name = var.cloud_function_service_account_name
+  display_name = var.cloud_function_service_account_display_name
 }
 
 resource "google_project_iam_binding" "pubsub_subscriber" {
@@ -473,3 +482,55 @@ resource "google_project_iam_binding" "cloudsql_client" {
   members = ["serviceAccount:${google_service_account.for_cloud_function.email}"]
 }
 // [END setup Cloud Function]
+
+// [START setup CMEK]
+resource "google_kms_key_ring" "default" {
+  name     = var.key_ring_name
+  location = var.region
+}
+
+resource "google_kms_crypto_key" "for_webapp" {
+  name            = "key-for-vm-${random_id.random_suffix.hex}"
+  key_ring        = google_kms_key_ring.default.id
+  rotation_period = var.key_rotation_period
+}
+
+resource "google_kms_crypto_key" "for_db" {
+  name            = "key-for-db-${random_id.random_suffix.hex}"
+  key_ring        = google_kms_key_ring.default.id
+  rotation_period = var.key_rotation_period
+}
+
+resource "google_kms_crypto_key" "for_storage_bucket" {
+  name            = "key-for-storage-bucket-${random_id.random_suffix.hex}"
+  key_ring        = google_kms_key_ring.default.id
+  rotation_period = var.key_rotation_period
+}
+
+resource "google_kms_crypto_key_iam_member" "for_webapp" {
+  crypto_key_id = google_kms_crypto_key.for_webapp.id
+  role          = var.role_for_kms_crypto_key
+  member        = "serviceAccount:${google_service_account.for_app_instance.email}"
+}
+
+
+resource "google_project_service_identity" "gcp_sa_cloud_sql" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "sqladmin.googleapis.com"
+}
+resource "google_kms_crypto_key_iam_member" "for_db" {
+  provider      = google-beta
+  crypto_key_id = google_kms_crypto_key.for_db.id
+  role          = var.role_for_kms_crypto_key
+  member        = "serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}"
+}
+
+
+data "google_storage_project_service_account" "for_gcs" {}
+resource "google_kms_crypto_key_iam_member" "for_storage_bucket" {
+  crypto_key_id = google_kms_crypto_key.for_storage_bucket.id
+  role          = var.role_for_kms_crypto_key
+  member        = "serviceAccount:${data.google_storage_project_service_account.for_gcs.email_address}"
+}
+// [End setup CMEK]

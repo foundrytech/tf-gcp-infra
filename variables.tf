@@ -166,7 +166,7 @@ variable "service_account_id" {
   type = string
 }
 
-variable "service_account_name" {
+variable "service_account_display_name" {
   type = string
 }
 
@@ -396,7 +396,7 @@ variable "cloud_function_service_account_id" {
   type = string
 }
 
-variable "cloud_function_service_account_name" {
+variable "cloud_function_service_account_display_name" {
   type = string
 }
 
@@ -498,5 +498,17 @@ variable "vpc_connector_ip_cidr_range" {
 }
 
 variable "role_for_cloudsql_client" {
+  type = string
+}
+
+variable "key_ring_name" {
+  type = string
+}
+
+variable "key_rotation_period" {
+  type = string
+}
+
+variable "role_for_kms_crypto_key" {
   type = string
 }
