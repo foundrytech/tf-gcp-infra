@@ -130,7 +130,7 @@ resource "google_sql_user" "db_user" {
 // [END setup db user and password]
 
 // [START setup app vm instance related resources]
-data "google_compute_image" "use_packer_image" {
+data "google_compute_image" "latest_packer_image" {
   family = var.image_family
 }
 
@@ -167,7 +167,7 @@ resource "google_compute_region_instance_template" "for_webapp" {
   machine_type = var.machine_type
 
   disk {
-    source_image = data.google_compute_image.use_packer_image.self_link
+    source_image = data.google_compute_image.latest_packer_image.self_link
     source_image_encryption_key {
       kms_key_self_link = google_kms_crypto_key.for_webapp.id
     }
