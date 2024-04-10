@@ -485,7 +485,7 @@ resource "google_project_iam_binding" "cloudsql_client" {
 
 // [START setup CMEK]
 resource "google_kms_key_ring" "default" {
-  name     = var.key_ring_name
+  name     = "key-ring-${random_id.random_suffix.hex}"
   location = var.region
 }
 
