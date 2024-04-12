@@ -158,10 +158,6 @@ variable "image_family" {
   type = string
 }
 
-variable "app_external_ip_name" {
-  type = string
-}
-
 variable "service_account_id" {
   type = string
 }

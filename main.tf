@@ -134,10 +134,6 @@ data "google_compute_image" "latest_packer_image" {
   family = var.image_family
 }
 
-resource "google_compute_address" "external_ip" {
-  name = var.app_external_ip_name
-}
-
 resource "google_service_account" "for_app_instance" {
   account_id   = var.service_account_id
   display_name = var.service_account_display_name
@@ -183,9 +179,7 @@ resource "google_compute_region_instance_template" "for_webapp" {
   network_interface {
     network    = google_compute_network.vpc_network.self_link
     subnetwork = google_compute_subnetwork.app_subnet.self_link
-    access_config {
-      nat_ip = google_compute_address.external_ip.address
-    }
+    access_config {}
   }
 
   metadata = {
@@ -237,7 +231,7 @@ resource "google_compute_region_instance_group_manager" "for_webapp" {
   name                      = "${var.instance_group_manager_name}-${random_id.random_suffix.hex}"
   base_instance_name        = var.instance_group_manager_base_instance_name
   region                    = var.region
-  distribution_policy_zones = ["${var.region}-a", "${var.region}-c", "${var.region}-f"]
+  distribution_policy_zones = ["${var.region}-a", "${var.region}-b", "${var.region}-c"]
 
   version {
     name              = var.instance_group_manager_version_name
@@ -507,10 +501,15 @@ resource "google_kms_crypto_key" "for_storage_bucket" {
   rotation_period = var.key_rotation_period
 }
 
-resource "google_kms_crypto_key_iam_member" "for_webapp" {
-  crypto_key_id = google_kms_crypto_key.for_webapp.id
-  role          = var.role_for_kms_crypto_key
-  member        = "serviceAccount:${google_service_account.for_app_instance.email}"
+
+data "google_project" "my_project" {}
+resource "google_project_iam_binding" "kms_binding" {
+  project = var.project_id
+  role    = var.role_for_kms_crypto_key
+
+  members = [
+    "serviceAccount:service-${data.google_project.my_project.number}@compute-system.iam.gserviceaccount.com",
+  ]
 }
 
 
