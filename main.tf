@@ -231,7 +231,7 @@ resource "google_compute_region_instance_group_manager" "for_webapp" {
   name                      = "${var.instance_group_manager_name}-${random_id.random_suffix.hex}"
   base_instance_name        = var.instance_group_manager_base_instance_name
   region                    = var.region
-  distribution_policy_zones = ["${var.region}-a", "${var.region}-b", "${var.region}-c", "${var.region}-f"]
+  distribution_policy_zones = ["${var.region}-a", "${var.region}-b", "${var.region}-c"]
 
   version {
     name              = var.instance_group_manager_version_name
