@@ -501,10 +501,15 @@ resource "google_kms_crypto_key" "for_storage_bucket" {
   rotation_period = var.key_rotation_period
 }
 
-resource "google_kms_crypto_key_iam_member" "for_webapp" {
-  crypto_key_id = google_kms_crypto_key.for_webapp.id
-  role          = var.role_for_kms_crypto_key
-  member        = "serviceAccount:${google_service_account.for_app_instance.email}"
+
+data "google_project" "my_project" {}
+resource "google_project_iam_binding" "kms_binding" {
+  project = var.project_id
+  role    = var.role_for_kms_crypto_key
+
+  members = [
+    "serviceAccount:service-${data.google_project.my_project.number}@compute-system.iam.gserviceaccount.com",
+  ]
 }
 
 
