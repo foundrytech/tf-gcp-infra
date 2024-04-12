@@ -139,22 +139,16 @@ resource "google_service_account" "for_app_instance" {
   display_name = var.service_account_display_name
 }
 
-resource "google_project_iam_binding" "logging_admin_iam" {
+resource "google_project_iam_member" "logging_admin_iam" {
   project = var.project_id
   role    = var.role_for_logging
-
-  members = [
-    "serviceAccount:${google_service_account.for_app_instance.email}",
-  ]
+  member = "serviceAccount:${google_service_account.for_app_instance.email}"
 }
 
-resource "google_project_iam_binding" "monitoring_metric_writer_iam" {
+resource "google_project_iam_member" "monitoring_metric_writer_iam" {
   project = var.project_id
   role    = var.role_for_monitoring
-
-  members = [
-    "serviceAccount:${google_service_account.for_app_instance.email}",
-  ]
+  member = "serviceAccount:${google_service_account.for_app_instance.email}"
 }
 
 resource "google_compute_region_instance_template" "for_webapp" {
