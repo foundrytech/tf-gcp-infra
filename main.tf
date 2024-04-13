@@ -161,8 +161,6 @@ resource "google_compute_region_instance_template" "for_webapp" {
     disk_encryption_key {
       kms_key_self_link = google_kms_crypto_key.for_webapp.id
     }
-    type         = var.disk_type
-    disk_size_gb = var.disk_size
   }
 
   service_account {
@@ -198,9 +196,10 @@ resource "google_compute_region_instance_template" "for_webapp" {
       
     fi
 
-    cat "$ENV_FILE"
     EOT
   }
+  
+  depends_on = [ google_kms_crypto_key.for_webapp ]
 }
 
 resource "google_compute_health_check" "for_webapp" {
@@ -501,12 +500,6 @@ resource "google_project_iam_member" "kms_binding" {
   project = var.project_id
   role    = var.role_for_kms_crypto_key
   member = "serviceAccount:service-${data.google_project.my_project.number}@compute-system.iam.gserviceaccount.com"
-}
-
-resource "google_kms_crypto_key_iam_member" "for_webapp" {
-  crypto_key_id = google_kms_crypto_key.for_webapp.id
-  role          = var.role_for_kms_crypto_key
-  member        = "serviceAccount:${google_service_account.for_app_instance.email}"
 }
 
 

@@ -183,13 +183,7 @@ variable "machine_type" {
   type = string
 }
 
-variable "disk_type" {
-  type = string
-}
 
-variable "disk_size" {
-  type = number
-}
 
 variable "service_account_scopes" {
   type = list(string)
